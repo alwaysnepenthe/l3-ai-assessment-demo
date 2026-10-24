@@ -23,8 +23,9 @@ export async function POST(request: Request) {
     const response = await fetch(`${base}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(5000),
       body: JSON.stringify({
-        model: process.env.AI_MODEL || "gpt-4.1-mini", temperature: 0,
+        model: process.env.AI_MODEL || "gpt-4.1-mini", temperature: 0, max_tokens: 650,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "你是严格的课程答案评分器。只比较学员回答与标准答案要点，不按文采、长度或所谓表达能力评分。把100分均分给必答要点，依据语义是否真正回答到逐项给分。必须返回JSON，不得给出治疗建议。" },
@@ -53,5 +54,8 @@ export async function POST(request: Request) {
       feedback: { correct: String(parsed.feedback?.correct || fallback.feedback.correct), gap: String(parsed.feedback?.gap || fallback.feedback.gap), next: String(parsed.feedback?.next || fallback.feedback.next) },
       followUpNeeded: total < 80, followUp: item.followUp, mode: "ai" };
     return Response.json(result);
-  } catch { return Response.json(fallback); }
+  } catch (error) {
+    console.warn("Assessment AI scoring timed out or failed; returning fast rubric score", error);
+    return Response.json({ ...fallback, mode: "rules-timeout" as const });
+  }
 }

@@ -17,5 +17,11 @@ export type ScoreResult = {
   hitPoints: string[]; missingPoints: string[]; errorStatements: string[]; blockers: string[];
   evidence: string[]; tags: string[];
   feedback: { correct: string; gap: string; next: string };
-  followUpNeeded: boolean; followUp: string; mode: "ai" | "rules";
+  followUpNeeded: boolean; followUp: string; mode: "ai" | "rules" | "rules-timeout";
+};
+
+export type PreTestResult = {
+  canSkipChapter: boolean;
+  diagnosis: string[];
+  allPassed: boolean;
 };

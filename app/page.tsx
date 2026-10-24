@@ -1,4 +1,4 @@
-import AssessmentClient from "./learning-platform";
+import AssessmentClient from "./learning-platform-v2";
 
 const sidebarWidths = [74, 58, 82, 66, 71, 54];
 const articleWidths = [100, 97, 94, 98, 86];

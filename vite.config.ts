@@ -45,6 +45,7 @@ export default defineConfig(async ({ command }) => {
 
   return {
     server: {
+      watch: { ignored: ["**/.wrangler/**", "**/outputs/**"] },
       ...(managedLinux
         ? { host: "0.0.0.0", allowedHosts: ["terminal.local"] }
         : {}),

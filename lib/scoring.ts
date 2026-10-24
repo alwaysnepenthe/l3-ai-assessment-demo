@@ -18,7 +18,13 @@ export function ruleScore(itemId: string, answer: string): ScoreResult {
   const hits = indexes.filter((i) => module.keywords[i].some((k) => normalized.includes(k.replace(/\s+/g, "").toLowerCase())));
   const hitPoints = hits.map((i) => module.requiredPoints[i] as string);
   const missingPoints = indexes.filter((i) => !hits.includes(i)).map((i) => module.requiredPoints[i] as string);
-  const blockers = blockerPatterns.filter(([pattern]) => pattern.test(normalized)).map(([, label]) => label);
+  const negationOrCorrection = /(不|非|未|无|并不|并非|不是|不能|不会|不应|避免|纠正)/;
+  const blockers = blockerPatterns
+    .filter(([pattern]) => {
+      const match = normalized.match(pattern);
+      return Boolean(match && !negationOrCorrection.test(match[0]));
+    })
+    .map(([, label]) => label);
   const coverage = indexes.length ? hits.length / indexes.length : 0;
   const pointScores = indexes.map((i, order) => {
     const maxPerPoint = Math.floor(100 / indexes.length) + (order < 100 % indexes.length ? 1 : 0);
@@ -46,10 +52,26 @@ export function ruleScore(itemId: string, answer: string): ScoreResult {
 }
 
 export function summarize(scores: ScoreResult[]) {
+  // Normalize against the modules represented in this sitting. A single-module
+  // lesson test must still be scored out of 100, while a full-course test keeps
+  // the course weights.
+  const weightTotal = scores.reduce((sum, score) => sum + getModule(score.moduleId).weight, 0);
   const weighted = scores.reduce((sum, score) => sum + score.total * getModule(score.moduleId).weight, 0);
-  const total = Math.round(weighted);
+  const total = weightTotal ? Math.round(weighted / weightTotal) : 0;
   const blockers = scores.flatMap((s) => s.blockers.map((b) => `${s.moduleId}：${b}`));
   let level = total >= 85 ? "优秀" : total >= 70 ? "通过" : total >= 60 ? "待补练" : "未通过";
   if (blockers.length && total >= 70) level = "待补练";
-  return { total, level, blockers };
+  const canSkipChapter = scores.length >= 3 && scores.every(s => s.total >= 80) && !blockers.length;
+  return { total, level, blockers, canSkipChapter };
+}
+
+export function getPreTestDiagnosis(scores: ScoreResult[]) {
+  const allPassed = scores.every(s => s.total >= 80) && scores.every(s => s.blockers.length === 0);
+  const diagnosis = scores
+    .filter(s => s.missingPoints.length > 0 || s.blockers.length > 0)
+    .flatMap(s => [
+      ...s.missingPoints.slice(0, 2).map(p => `缺少：${p}`),
+      ...s.blockers.slice(0, 1).map(b => `误区：${b}`)
+    ]);
+  return { allPassed, diagnosis: diagnosis.slice(0, 3) };
 }
