@@ -136,3 +136,53 @@ export function selectAssessment(): AssessmentItem[] {
 
 export function getModule(id: string) { return modules.find((m) => m.id === id)!; }
 export function getItem(id: string) { return questionBank.find((q) => q.id === id)!; }
+
+export function retrieveModuleContext(moduleId: string, query = "") {
+  const module = getModule(moduleId);
+  const normalized = query.toLowerCase();
+  const relevantPoints = module.requiredPoints
+    .map((point, index) => ({
+      point,
+      index,
+      score: [point, ...(module.keywords[index] || [])].reduce(
+        (total, term) => total + (normalized.includes(term.toLowerCase()) ? 2 : 0),
+        0,
+      ),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, 4)
+    .map((item) => item.point);
+
+  return {
+    moduleId: module.id,
+    title: module.title,
+    objective: module.objective,
+    conclusion: module.conclusion,
+    anchor: module.anchor,
+    relevantPoints,
+    misconceptions: module.misconceptions,
+    boundary: module.boundary,
+    review: module.review,
+  };
+}
+
+export function retrieveCourseContext(query = "") {
+  const normalized = query.toLowerCase();
+  return modules
+    .map((module) => ({
+      module,
+      score: [module.title, module.subtitle, module.objective, module.conclusion, module.anchor, ...module.requiredPoints]
+        .reduce((total, term) => total + (normalized.includes(term.toLowerCase()) ? 2 : 0), 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.module.id.localeCompare(b.module.id))
+    .slice(0, 3)
+    .map(({ module }) => ({
+      moduleId: module.id,
+      title: module.title,
+      objective: module.objective,
+      conclusion: module.conclusion,
+      anchor: module.anchor,
+      boundary: module.boundary,
+      review: module.review,
+    }));
+}

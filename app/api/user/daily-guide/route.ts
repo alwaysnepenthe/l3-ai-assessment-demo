@@ -1,13 +1,14 @@
-import { getModule } from "@/lib/course";
+import { getModule, modules } from "@/lib/course";
 import { memorySystem } from "@/lib/user-memory-system";
 
 export async function POST(request: Request) {
-  const { userId = "demo-user", courseId = "L3-SG-01", moduleId = "P1", recentAttempts = [] } = await request.json() as { userId?: string; courseId?: string; moduleId?: string; recentAttempts?: Array<{moduleId:string;moduleTitle:string;score:number;missingPoints:string[];blockers:string[]}> };
-  const module = getModule(moduleId);
+  const { userId = "demo-user", courseId = "L3-SG-01", moduleId, earnedBadges = [], recentAttempts = [] } = await request.json() as { userId?: string; courseId?: string; moduleId?: string; earnedBadges?: string[]; recentAttempts?: Array<{moduleId:string;moduleTitle:string;score:number;missingPoints:string[];blockers:string[]}> };
+  const recentWeak = recentAttempts.filter(item => item.score < 80).slice(-1)[0];
+  const focusId = moduleId || recentWeak?.moduleId || modules.find(item => !earnedBadges.includes(item.id))?.id || "P1";
+  const module = getModule(focusId);
   if (!module) return Response.json({ error: "章节不存在" }, { status: 404 });
   try {
     const [profile, context, memory] = await Promise.all([memorySystem.getOrCreateUserProfile(userId), memorySystem.generateTutoringContext(userId, courseId), memorySystem.getLongTermMemory(userId)]);
-    const recentWeak = recentAttempts.filter(item => item.score < 80).slice(-1)[0];
     const weak = recentWeak?.missingPoints?.[0] || recentWeak?.blockers?.[0] || memory.overallWeaknesses[0] || module.title;
     const fallback = profile.role === "new_hire"
       ? "今天先从 " + module.id + "「" + module.title + "」开始。建议先完成课前测试，再根据薄弱点看视频；我会陪你把主线理清。"
