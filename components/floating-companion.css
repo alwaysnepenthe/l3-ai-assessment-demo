@@ -1,0 +1,24 @@
+.lp-companion{position:fixed;left:24px;bottom:22px;width:86px;height:86px;z-index:60;font-family:var(--font-ui)}
+.lp-companion .companion-avatar{width:86px;height:86px;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.lp-companion .companion-avatar img{pointer-events:none}
+.lp-companion .companion-avatar:active,.lp-companion.is-dragging [data-companion-drag]{cursor:grabbing}
+.lp-companion.is-dragging .companion-avatar img{animation-play-state:paused}
+.companion-speech{position:absolute;left:var(--companion-bubble-left,0px);bottom:calc(100% + 12px);width:min(285px,calc(100vw - 24px));border:1px solid #d3e2f6;border-radius:16px 16px 16px 4px;background:linear-gradient(145deg,#fff,#f5f8ff);padding:17px;box-shadow:0 12px 32px #233b5f20;cursor:grab;touch-action:none;user-select:none}
+.companion-speech::after{position:absolute;left:var(--companion-tail-left,32px);bottom:-7px;width:12px;height:12px;transform:rotate(45deg);border-right:1px solid #d3e2f6;border-bottom:1px solid #d3e2f6;background:#f5f8ff;content:""}
+.companion-speech>b{display:block;padding-right:22px;color:#304c70;font-size:14px;line-height:1.65}
+.companion-speech>p{margin:8px 0 12px;color:#61748e;font-size:13px;line-height:1.8}
+.companion-speech>.lp-primary{min-height:36px;padding:7px 12px;font-size:13px}
+.companion-speech>.companion-bubble-close{position:absolute;top:5px;right:5px;display:grid;width:32px;height:32px;place-items:center;border:0;border-radius:50%;background:transparent;color:#7b8fa9;font-size:22px;line-height:1;cursor:pointer}
+.companion-speech>.companion-bubble-close:hover{background:#e9eff8;color:#315fde}
+.lp-companion.bubble-below .companion-speech{top:calc(100% + 12px);bottom:auto;border-radius:4px 16px 16px 16px}
+.lp-companion.bubble-below .companion-speech::after{top:-7px;bottom:auto;transform:rotate(225deg)}
+.lp-companion>.lp-pet-panel{position:absolute;left:var(--companion-panel-left,0px);top:var(--companion-panel-top,-552px);height:var(--companion-panel-height,540px);width:min(380px,calc(100vw - 24px));max-height:calc(100dvh - 36px);margin:0}
+.lp-companion>.lp-pet-panel>header{touch-action:none;cursor:grab;user-select:none}
+.lp-companion>.lp-pet-panel>header button{min-width:32px;min-height:32px;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.lp-companion .companion-avatar img{animation:none}}
+.lp .lp-chat-voice-control,.lp .lp-composer-buttons>.lp-chat-voice-control{position:relative;flex:0 0 44px;width:44px}
+.lp .lp-chat-voice-control>.lp-chat-voice,.lp .lp-composer-buttons>.lp-chat-voice-control>.lp-chat-voice{display:flex;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:1px solid #d7e3fb;border-radius:12px;background:#edf3ff;color:#315fde}
+.lp .lp-chat-voice-control>.lp-chat-voice:hover:not(:disabled){background:#dfeaff}
+.lp .lp-chat-voice-control>.lp-chat-voice.listening{background:#fff0ec;border-color:#edb4a9;color:#b94c40}
+.lp .lp-chat-voice-control .lp-chat-voice-status{position:absolute;right:0;bottom:calc(100% + 8px);width:max-content;max-width:210px;padding:5px 8px;border-radius:7px;background:#fff;box-shadow:0 3px 12px #20365018;font-size:12px;line-height:1.5}
+.lp .lp-chat-voice-status:empty{display:none}

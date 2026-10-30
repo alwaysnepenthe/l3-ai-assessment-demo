@@ -2,6 +2,7 @@
 // 管理用户长期记忆和课程总结
 
 import { memorySystem } from "@/lib/user-memory-system";
+import { createModelCompletion, hasAIConfiguration } from "@/lib/ai-provider";
 
 /**
  * GET /api/user/memory?userId={userId}
@@ -58,28 +59,22 @@ export async function POST(request: Request) {
     }
 
     let aiSuggestions = suggestions;
-    const apiKey = process.env.AI_API_KEY;
-    if (apiKey) {
+    if (hasAIConfiguration()) {
       try {
-        const base = (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
-        const response = await fetch(`${base}/chat/completions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({
+        const result = await createModelCompletion(
+          {
             model: process.env.AI_MODEL || "gpt-4o-mini",
             temperature: 0.2,
             messages: [
               { role: "system", content: "你是学习记录整理助手。只能依据输入中的分数和标签总结，不得自行补充专业知识或推断未提供的事实。把薄弱点转成具体复习建议，返回 JSON：{\"suggestions\":[最多5条简短中文建议]}。" },
               { role: "user", content: JSON.stringify({ title, scores, masteredPoints, strugglingPoints, suggestions }) },
             ],
-          }),
-        });
-        if (response.ok) {
-          const result = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-          const content = result.choices?.[0]?.message?.content || "";
-          const parsed = JSON.parse(content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { suggestions?: unknown };
-          if (Array.isArray(parsed.suggestions)) aiSuggestions = parsed.suggestions.filter((item): item is string => typeof item === "string").slice(0, 5);
-        }
+          },
+          30000,
+        ) as { choices?: Array<{ message?: { content?: string } }> };
+        const content = result.choices?.[0]?.message?.content || "";
+        const parsed = JSON.parse(content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "")) as { suggestions?: unknown };
+        if (Array.isArray(parsed.suggestions)) aiSuggestions = parsed.suggestions.filter((item): item is string => typeof item === "string").slice(0, 5);
       } catch {
         // Deterministic recommendations remain available when the model is unavailable.
       }

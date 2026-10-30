@@ -33,9 +33,9 @@ export function ruleScore(itemId: string, answer: string): ScoreResult {
   });
   const total = pointScores.reduce((sum, p) => sum + p.score, 0);
   const tags = [
-    ...(coverage < 0.6 ? [`要点覆盖不足→${module.id}`] : []),
-    ...(coverage < 1 ? [`答案要点遗漏→${module.id}`] : []),
-    ...blockers.map(() => `关键误区→${module.id}`),
+    ...(coverage < 0.6 ? [`要点覆盖不足：${module.id}`] : []),
+    ...(coverage < 1 ? [`答案要点遗漏：${module.id}`] : []),
+    ...blockers.map(() => `关键误区：${module.id}`),
   ];
   const followUpNeeded = total < 85 || missingPoints.length > 0 || blockers.length > 0;
   return {
@@ -67,11 +67,11 @@ export function summarize(scores: ScoreResult[]) {
 
 export function getPreTestDiagnosis(scores: ScoreResult[]) {
   const allPassed = scores.every(s => s.total >= 80) && scores.every(s => s.blockers.length === 0);
-  const diagnosis = scores
+  const diagnosis = [...new Set(scores
     .filter(s => s.missingPoints.length > 0 || s.blockers.length > 0)
     .flatMap(s => [
       ...s.missingPoints.slice(0, 2).map(p => `缺少：${p}`),
       ...s.blockers.slice(0, 1).map(b => `误区：${b}`)
-    ]);
+    ]))];
   return { allPassed, diagnosis: diagnosis.slice(0, 3) };
 }

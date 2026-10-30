@@ -1,5 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import { Pencil, X, BookOpen, CircleCheck, ChartColumn, Lightbulb, TrendingUp, TriangleAlert, Award, Trophy } from "lucide-react";
+import { DirectionLabel } from "@/components/DirectionalIcon";
+import "./personal-home-icons.css";
 import type { UserProfile, LongTermMemory } from "@/lib/user-memory-system";
 
 interface PersonalHomeProps {
@@ -115,9 +118,7 @@ export default function PersonalHome({ userId, onOpenAssistant }: PersonalHomePr
       <section className="lp-ph-card lp-ph-profile">
         <div className="lp-ph-header">
           <h2>个人档案</h2>
-          <button className="lp-text" onClick={() => setEditMode(!editMode)}>
-            {editMode ? "取消编辑" : "编辑信息"}
-          </button>
+          <button type="button" className="ph-edit-profile" aria-label={editMode ? "取消编辑" : "编辑信息"} title={editMode ? "取消编辑" : "编辑信息"} onClick={() => setEditMode(!editMode)}>{editMode ? <X size={20} aria-hidden="true"/> : <Pencil size={20} aria-hidden="true"/>}</button>
         </div>
 
         {editMode ? (
@@ -221,19 +222,19 @@ export default function PersonalHome({ userId, onOpenAssistant }: PersonalHomePr
       </section>
 
       <section className="lp-ph-card lp-ph-assistant">
-        <div className="lp-ph-assistant-main"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><small>YOUR AI LEARNING PARTNER</small><h2>我的 AI 助教 · 半小岛</h2><p>我会参考你的身份、主攻方向和近期薄弱点，调整讲解方式和学习路线。</p></div><button className="lp-primary" onClick={() => setChatOpen(v => !v)}>{chatOpen ? "收起对话" : "和我聊聊 →"}</button></div>
-        {chatOpen && <div className="lp-ph-chat"><p>我会结合你的课程资料和近期练习记录回答。</p><button className="lp-secondary" onClick={onOpenAssistant}>打开全站助教对话 →</button></div>}
+        <div className="lp-ph-assistant-main"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><h2>我的 AI 助教 · 半小岛</h2><p>我会参考你的身份、主攻方向和近期薄弱点，调整讲解方式和学习路线。</p></div><button className="lp-primary" onClick={() => setChatOpen(v => !v)}>{chatOpen ? "收起对话" : <DirectionLabel>和我聊聊</DirectionLabel>}</button></div>
+        {chatOpen && <div className="lp-ph-chat"><p>我会结合你的课程资料和近期练习记录回答。</p><button className="lp-secondary" onClick={onOpenAssistant}><DirectionLabel>打开全站助教对话</DirectionLabel></button></div>}
         <div className="lp-ph-persona"><span>{profile.role === "new_hire" ? "新人循序带教" : "资深销售薄弱点巩固"}</span><span>{profile.registrationInfo?.specialization || "专业知识学习"}</span></div>
       </section>
 
       <section className="lp-ph-card lp-ph-ability">
-        <div className="lp-ph-header"><div><small>ABILITY PROFILE</small><h2>我的 L3 能力画像</h2></div><span>根据最近作答动态更新</span></div>
-        <div className="lp-ability-bars">{moduleScores.map(item => <div key={item.id}><b>{item.id}</b><i><em style={{width:`${item.score}%`}}/></i><strong>{item.score || "—"}</strong></div>)}</div>
+        <div className="lp-ph-header"><div><h2>我的 <span className="lp-level-mark">L3</span> 能力画像</h2></div><span>根据最近作答动态更新</span></div>
+        <div className="lp-ability-bars">{moduleScores.map(item => <div key={item.id}><b>{item.id}</b><i><em style={{width:`${item.score}%`}}/></i><strong className="lp-numeric">{item.score || "—"}</strong></div>)}</div>
       </section>
 
       <section className="lp-ph-card lp-ph-medals">
-        <div className="lp-ph-header"><div><small>BADGE WALL</small><h2>我的勋章墙</h2></div><span>{localBadges.filter(id=>/^P[1-6]$/.test(id)).length}/6 章节勋章</span></div>
-        <div className="lp-medal-wall">{["P1","P2","P3","P4","P5","P6"].map((id,index)=><div className={localBadges.includes(id)?"earned":"locked"} key={id}><span>{localBadges.includes(id)?"🎖":"◇"}</span><b>{id} 第 {index+1} 关</b><small>{localBadges.includes(id)?"已点亮":"待解锁"}</small></div>)}<div className={localBadges.includes("L3-final")?"earned final":"locked final"}><span>🏆</span><b>L3 总勋章</b><small>{localBadges.includes("L3-final")?"终局通关":"完成六关后解锁"}</small></div></div>
+        <div className="lp-ph-header"><div><h2>我的勋章墙</h2></div><span>{localBadges.filter(id=>/^P[1-6]$/.test(id)).length}/6 章节勋章</span></div>
+        <div className="lp-medal-wall">{["P1","P2","P3","P4","P5","P6"].map((id,index)=><div className={localBadges.includes(id)?"earned":"locked"} key={id}><span><Award className={localBadges.includes(id)?"ph-svg ph-svg-gold":"ph-svg ph-svg-muted"} aria-hidden="true"/></span><b>{id} 第 {index+1} 关</b><small>{localBadges.includes(id)?"已点亮":"待解锁"}</small></div>)}<div className={localBadges.includes("L3-final")?"earned final":"locked final"}><span><Trophy className={localBadges.includes("L3-final")?"ph-svg ph-svg-gold":"ph-svg ph-svg-muted"} aria-hidden="true"/></span><b>L3 总勋章</b><small>{localBadges.includes("L3-final")?"终局通关":"完成六关后解锁"}</small></div></div>
       </section>
 
       {/* 学习概览 */}
@@ -241,28 +242,28 @@ export default function PersonalHome({ userId, onOpenAssistant }: PersonalHomePr
         <h2>学习概览</h2>
         <div className="lp-ph-stats">
           <div className="lp-ph-stat-item">
-            <span className="lp-ph-stat-icon">📚</span>
+            <span className="lp-ph-stat-icon ph-icon-tile ph-tile-blue"><BookOpen aria-hidden="true"/></span>
             <div>
               <p className="lp-ph-stat-value">{totalCourses}</p>
               <p className="lp-ph-stat-label">已完成课程</p>
             </div>
           </div>
           <div className="lp-ph-stat-item">
-            <span className="lp-ph-stat-icon">✓</span>
+            <span className="lp-ph-stat-icon ph-icon-tile ph-tile-green"><CircleCheck aria-hidden="true"/></span>
             <div>
               <p className="lp-ph-stat-value">{masteredCount}</p>
               <p className="lp-ph-stat-label">已通过课程</p>
             </div>
           </div>
           <div className="lp-ph-stat-item">
-            <span className="lp-ph-stat-icon">📊</span>
+            <span className="lp-ph-stat-icon ph-icon-tile ph-tile-purple"><ChartColumn aria-hidden="true"/></span>
             <div>
-              <p className="lp-ph-stat-value">{avgScore}</p>
+              <p className="lp-ph-stat-value lp-numeric">{avgScore}</p>
               <p className="lp-ph-stat-label">平均成绩</p>
             </div>
           </div>
           <div className="lp-ph-stat-item">
-            <span className="lp-ph-stat-icon">💡</span>
+            <span className="lp-ph-stat-icon ph-icon-tile ph-tile-amber"><Lightbulb aria-hidden="true"/></span>
             <div>
               <p className="lp-ph-stat-value">{ltm.overallStrengths.length}</p>
               <p className="lp-ph-stat-label">优势领域</p>
@@ -283,7 +284,7 @@ export default function PersonalHome({ userId, onOpenAssistant }: PersonalHomePr
                 <div className="lp-ph-course-header">
                   <h3>{course.title}</h3>
                   <span className={`lp-ph-badge ${course.passedAt ? "passed" : "pending"}`}>
-                    {course.passedAt ? "✓ 已通过" : "待完成"}
+                    {course.passedAt ? <><CircleCheck className="ph-svg ph-svg-green ph-svg-small" aria-hidden="true"/>已通过</> : "待完成"}
                   </span>
                 </div>
                 <div className="lp-ph-course-meta">
@@ -325,22 +326,28 @@ export default function PersonalHome({ userId, onOpenAssistant }: PersonalHomePr
       <section className="lp-ph-card lp-ph-strengths-weaknesses">
         <div className="lp-ph-two-col">
           <div className="lp-ph-col">
-            <h3>📈 整体优势</h3>
+            <h3 className="ph-icon-heading"><TrendingUp className="ph-svg ph-svg-green" aria-hidden="true"/>整体优势</h3>
             <p className="lp-ph-insight">{displayStrengths.join("；")}</p>
           </div>
           <div className="lp-ph-col">
-            <h3>⚠️ 持续挑战</h3>
+            <h3 className="ph-icon-heading"><TriangleAlert className="ph-svg ph-svg-amber" aria-hidden="true"/>持续挑战</h3>
             <p className="lp-ph-insight">{displayChallenges.join("；")}</p>
           </div>
         </div>
-        <div className="lp-ph-coach-cta"><p>想把优势变成稳定表达，或一起拆解某个薄弱点？</p><button className="lp-secondary" onClick={onOpenAssistant}>和半小岛聊聊 →</button></div>
+        <div className="lp-ph-coach-cta"><p>想把优势变成稳定表达，或一起拆解某个薄弱点？</p><button className="lp-secondary" onClick={onOpenAssistant}><DirectionLabel>和半小岛聊聊</DirectionLabel></button></div>
       </section>
 
       {/* 学习进度摘要 */}
       <section className="lp-ph-card lp-ph-summary">
         <h2>学习进度摘要</h2>
         <div className="lp-ph-summary-text">
-          <p>{progressSummary}</p>
+          {progressSummary.split("\n").map((line,index)=>{
+            if(!line.trim())return null;
+            const Icon=/^\s*📊/.test(line)?ChartColumn:/^\s*✓/.test(line)?CircleCheck:/^\s*⚠/.test(line)?TriangleAlert:/^\s*📈/.test(line)?TrendingUp:null;
+            const tone=Icon===TriangleAlert?"amber":Icon===ChartColumn?"purple":"green";
+            const text=line.replace(/^\s*(?:📊|✓|⚠️?|📈)\s*/,"");
+            return <p className="ph-summary-line" key={index}>{Icon&&<Icon className={"ph-svg ph-svg-small ph-svg-"+tone} aria-hidden="true"/>}<span>{text}</span></p>;
+          })}
         </div>
       </section>
 

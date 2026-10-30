@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BookOpen, Check, ChevronRight, CircleAlert, Headphones, Mic, RotateCcw, ShieldCheck, Sparkles, Volume2 } from "lucide-react";
+import { DirectionIcon } from "@/components/DirectionalIcon";
 import { course, modules, questionBank } from "@/lib/course";
 import type { AssessmentItem, ScoreResult as CurrentScoreResult } from "@/lib/types";
 // Retained earlier prototype; the active entry is learning-platform.tsx.
@@ -139,7 +140,7 @@ export default function AssessmentClient() {
 
   return <main className="app-shell">
     <header className="topbar">
-      <button className="brand" onClick={() => setScreen("home")}><span className="brand-mark">半</span><span><b>半岛黄埔军校</b><small>AI 智能陪练</small></span></button>
+      <button className="brand" onClick={() => setScreen("home")}><span className="brand-mark">半</span><span><b>医美军校</b><small>AI 智能陪练</small></span></button>
       <div className="top-meta"><span className="status-dot" />L3 课程测评 · Demo</div>
     </header>
     {screen === "home" && <section className="home-grid page-enter">
@@ -147,7 +148,7 @@ export default function AssessmentClient() {
         <div className="hero-actions"><button className="primary-btn" onClick={() => setScreen("path")}><Sparkles size={19}/>进入课程学习<ChevronRight size={18}/></button><button className="ghost-btn" onClick={() => setScreen("bank")}><BookOpen size={18}/>查看题库生成</button></div>
         <div className="trust-row"><span><ShieldCheck/>学习陪练，非正式考试</span><span><Headphones/>约 15 分钟</span><span><Sparkles/>6 模块自适应追问</span></div>
       </div>
-      <div className="model-card"><div className="model-head"><span>声光电基础</span><b>6 MODULES</b></div><div className="energy-chain">{modules.map((m, i) => <div key={m.id} className="chain-node"><span>{m.id}</span><div><b>{m.title}</b><small>{m.subtitle}</small></div>{i < modules.length - 1 && <i/>}</div>)}</div><div className="model-foot"><span>统一判断主线</span><b>能量 → 组织 → 反应 → 效果</b></div></div>
+      <div className="model-card"><div className="model-head"><span>声光电基础</span><b>6 MODULES</b></div><div className="energy-chain">{modules.map((m, i) => <div key={m.id} className="chain-node"><span>{m.id}</span><div><b>{m.title}</b><small>{m.subtitle}</small></div>{i < modules.length - 1 && <i/>}</div>)}</div><div className="model-foot"><span>统一判断主线</span><b className="energy-chain-summary"><span>能量</span><DirectionIcon size={15}/><span>组织</span><DirectionIcon size={15}/><span>反应</span><DirectionIcon size={15}/><span>效果</span></b></div></div>
     </section>}
     {screen === "check" && <section className="center-page page-enter">
       <div className="step-label">{selectedModuleId} · {modules.find((m) => m.id === selectedModuleId)?.title} · {testMode === "pretest" ? "课前测试" : "学习后复测"}</div><h2>先确认你能听见，也能被听见</h2><p className="lead">本轮达标线为 80 分。建议佩戴耳机，在安静环境下完成；转写结果可确认和修正。</p>

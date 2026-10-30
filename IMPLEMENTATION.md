@@ -26,4 +26,4 @@
 - `POST /api/assessment/score`：返回结构化四维评分与反馈。
 - `POST /api/assessment/remediate`：按薄弱模块生成补练题。
 
-服务端环境变量为 `AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL`。密钥不会下发浏览器。
+服务端优先读取 `ANTHROPIC_AUTH_TOKEN`、`ANTHROPIC_BASE_URL`、`ANTHROPIC_MODEL`（Anthropic Messages 兼容协议），也兼容旧的 `AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL`（OpenAI Chat Completions 协议）。密钥不会下发浏览器。

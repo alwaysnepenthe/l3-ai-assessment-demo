@@ -1,13 +1,17 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Mic } from "lucide-react";
+import { Home, LayoutGrid, MessageCircle, Mic, Send, Sparkles, Square } from "lucide-react";
+import AcademyEmblem from "@/components/AcademyEmblem";
+import { DirectionIcon, DirectionLabel } from "@/components/DirectionalIcon";
 import { modules, questionBank, selectAssessment } from "@/lib/course";
 import { summarize, getPreTestDiagnosis } from "@/lib/scoring";
 import type { AssessmentItem, ScoreResult } from "@/lib/types";
 import PersonalHome from "@/components/PersonalHome";
+import FloatingCompanion from "@/components/FloatingCompanion";
 import { COURSE_MANIFEST_KEY, getCourseVideo } from "@/lib/client-course-store";
 import "./learning.css";
 import "./learning-platform-extras.css";
+import "./course-overview.css";
 
 type View = "assistant" | "overview" | "lesson" | "test" | "celebration" | "report" | "chapterCelebration" | "chapterJourney" | "personal";
 type Message = { role: "user" | "assistant"; content: string };
@@ -17,7 +21,10 @@ type LearningMemory = { profile:{name:string;role:string}; earnedBadges:string[]
 type ChatSpeechRecognition = {lang:string;continuous:boolean;interimResults:boolean;onresult:((event:{results:ArrayLike<{0:{transcript:string}}>} )=>void)|null;onerror:((event:{error:string})=>void)|null;onend:(()=>void)|null;start:()=>void;stop:()=>void;abort?:()=>void};
 type SpeechWindow = Window & {SpeechRecognition?:new()=>ChatSpeechRecognition;webkitSpeechRecognition?:new()=>ChatSpeechRecognition};
 
-function ChatVoiceButton({value,onChange,disabled=false,compact=false}:{value:string;onChange:(value:string)=>void;disabled?:boolean;compact?:boolean}){
+function NewChatIcon({size=18}:{size?:number}){
+ return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13.5a3 3 0 0 1-3 3H9l-5 4V7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3z"/><path d="M12 7.5v7m-3.5-3.5h7"/></svg>;
+}
+function ChatVoiceButton({value,onChange,onSend,disabled=false,compact=false}:{value:string;onChange:(value:string)=>void;onSend:()=>void;disabled?:boolean;compact?:boolean}){
  const [supported,setSupported]=useState(false),[listening,setListening]=useState(false),[notice,setNotice]=useState("");
  const recognition=useRef<ChatSpeechRecognition|null>(null),baseText=useRef("");
  useEffect(()=>{
@@ -47,8 +54,8 @@ function ChatVoiceButton({value,onChange,disabled=false,compact=false}:{value:st
    try{instance.start();}catch{setListening(false);setNotice("无法启动麦克风，请重试");}
  }
  return <div className={`lp-chat-voice-control ${compact?"compact":""}`}>
-   <button type="button" className={`lp-chat-voice ${listening?"listening":""}`} onClick={toggle} disabled={!supported||disabled} aria-label={listening?"结束语音输入":"语音输入"} title={!supported?"请使用最新版 Chrome 或 Edge 并允许麦克风权限":listening?"结束语音输入":"语音转文字"}>
-     <Mic size={16} aria-hidden="true"/>{!compact&&<span>{listening?"结束录音":"语音输入"}</span>}
+   <button type="button" className={`lp-chat-voice ${listening?"listening":""}`} onClick={()=>{if(listening)toggle();else if(value.trim())onSend();else toggle();}} disabled={disabled||(!listening&&!value.trim()&&!supported)} aria-label={listening?"结束语音输入":value.trim()?"发送消息":"语音输入"} title={listening?"结束语音输入":value.trim()?"发送消息":!supported?"请使用最新版 Chrome 或 Edge 并允许麦克风权限":"语音转文字"}>
+     {listening?<Square size={18} aria-hidden="true"/>:value.trim()?<Send size={18} aria-hidden="true"/>:<Mic size={18} aria-hidden="true"/>}
    </button>
    <small className="lp-chat-voice-status" aria-live="polite">{!supported?(compact?"":"Chrome / Edge 语音输入"):notice}</small>
  </div>;
@@ -82,9 +89,9 @@ function locateVideoNode(moduleId:string, point:string){
 function analyzeSceneAnswer(answer:string,index:number){
  const compact=answer.replace(/\s/g,"");
  const improvements=[
-  {focus:"先承接客户问题，再给出判断框架",action:"建议使用“先确认诉求 → 区分能量与效果 → 说明层次、靶组织和安全边界”的三步表达。"},
+  {focus:"先承接客户问题，再给出判断框架",action:"建议使用“先确认诉求，再区分能量与效果，最后说明层次、靶组织和安全边界”的三步表达。"},
   {focus:"避免过早推荐，补充需求澄清",action:"先询问客户最在意的表现、既往情况和预期，再解释波长与组织吸收差异，最后引导专业评估。"},
-  {focus:"把机制、效果与风险串成因果链",action:"可按“阻抗生热 → 温度与时间共同作用 → 组织反应 → 风险控制”组织回答，避免只讨论温度高低。"},
+  {focus:"把机制、效果与风险串成因果链",action:"可按“阻抗生热、温度与时间共同作用、组织反应和风险控制”的顺序组织回答，避免只讨论温度高低。"},
   {focus:"通俗比喻之后补回专业边界",action:"建议分别说明光的选择性吸收、射频的电流阻抗和超声的机械波聚焦，确保比喻不替代专业解释。"},
   {focus:"增强预期管理与下一步引导",action:"明确不复制参数、不承诺相同效果，再说明个体评估、风险边界和可执行的后续沟通安排。"},
  ];
@@ -95,18 +102,18 @@ function analyzeSceneAnswer(answer:string,index:number){
 }
 
 export default function LearningPlatform(){
- const [collapsed,collapse]=useState(false),[level,setLevel]=useState(3),[view,setView]=useState<View>("assistant"),[mid,setMid]=useState("P1");
+ const [level,setLevel]=useState(3),[view,setView]=useState<View>("assistant"),[mid,setMid]=useState("P1");
  const [badges,setBadges]=useState<string[]>([]),[watched,setWatched]=useState<string[]>([]),[required,setRequired]=useState<string[]>([]);
  const [lessonSessions,setLessonSessions]=useState<Record<string,Message[]>>({}),[input,setInput]=useState(""),[chatBusy,setChatBusy]=useState(false),[modelMode,setModelMode]=useState("");
  const [globalMessages,setGlobalMessages]=useState<Message[]>([]),[globalInput,setGlobalInput]=useState(""),[globalBusy,setGlobalBusy]=useState(false);
  const [chatSessions,setChatSessions]=useState<ChatSession[]>(demoChatSessions),[activeChatId,setActiveChatId]=useState("demo-today"),[homeChatInput,setHomeChatInput]=useState(""),[homeChatBusy,setHomeChatBusy]=useState(false),[historyCollapsed,setHistoryCollapsed]=useState(false);
- const [items,setItems]=useState<AssessmentItem[]>([]),[qi,setQi]=useState(0),[answer,setAnswer]=useState(""),[scores,setScores]=useState<ScoreResult[]>([]);
+ const [items,setItems]=useState<AssessmentItem[]>([]),[qi,setQi]=useState(0),[answer,setAnswer]=useState(""),[scores,setScores]=useState<ScoreResult[]>([]),[submittedAnswers,setSubmittedAnswers]=useState<Array<{itemId:string;answer:string}>>([]);
  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[listening,setListening]=useState(false),[voiceSupported,setVoiceSupported]=useState(false);
  const [testMode,setTestMode]=useState<"pre"|"post"|"final"|"scene">("pre"),[videoDuration,setVideoDuration]=useState(0),[pendingSeek,setPendingSeek]=useState(0);
  const [sceneAnswers,setSceneAnswers]=useState<Array<{question:string;answer:string}>>([]);
- const [canSkipChapter,setCanSkipChapter]=useState(false),[diagnosis,setDiagnosis]=useState<string[]>([]),[progressSummary,setProgressSummary]=useState("");
+ const [canSkipChapter,setCanSkipChapter]=useState(false),[progressSummary,setProgressSummary]=useState("");
  const [profile,setProfile]=useState<{name:string;role:string;registrationInfo?:{specialization?:string}}|null>(null);
- const [assistantOpen,setAssistantOpen]=useState(false),[petVisible,setPetVisible]=useState(false),[welcomeOpen,setWelcomeOpen]=useState(false),[guide,setGuide]=useState(""),[guideLoading,setGuideLoading]=useState(false);
+ const [assistantOpen,setAssistantOpen]=useState(false),[guide,setGuide]=useState(""),[guideLoading,setGuideLoading]=useState(false);
  const [recentAttempts,setRecentAttempts]=useState<RecentAttempt[]>([]);
  const [lessonGuide,setLessonGuide]=useState<Record<string,string>>({});
  const [publishedContent,setPublishedContent]=useState<Record<string,{videoUrl?:string;guide?:string;nodes?:Array<{ratio:number;label:string}>}>>({});
@@ -144,7 +151,6 @@ export default function LearningPlatform(){
      }
      setBadges(savedBadges);setWatched(savedWatched);setRequired(savedRequired);setRecentAttempts(savedAttempts);
    }catch{}
-   if(!localStorage.getItem("half-island-welcome-v1")){setWelcomeOpen(true);setPetVisible(true);}
    const w=window as any;setVoiceSupported(Boolean(w.SpeechRecognition||w.webkitSpeechRecognition));
 
    fetch(`/api/user/profile?userId=${userId}`).then(r=>r.json() as Promise<{progressSummary?:string;profile?:{name:string;role:string;registrationInfo?:{specialization?:string}}}>).then(data=>{
@@ -215,11 +221,11 @@ export default function LearningPlatform(){
    const pool=questionBank.filter(q=>q.moduleId===id);
    const offset=mode==="post"?1:0;
    setItems((["recall","understand","transfer"] as const).map(l=>pool.filter(q=>q.level===l)[offset]));
-   setMid(id);setTestMode(mode);setQi(0);setScores([]);setAnswer("");setError("");setCanSkipChapter(false);setDiagnosis([]);setView("test");
+   setMid(id);setTestMode(mode);setQi(0);setScores([]);setSubmittedAnswers([]);setAnswer("");setError("");setCanSkipChapter(false);setView("test");
  }
- function startFinalTest(){setItems(selectAssessment());setTestMode("final");setQi(0);setScores([]);setAnswer("");setError("");setCanSkipChapter(false);setDiagnosis([]);setView("test");}
+ function startFinalTest(){setItems(selectAssessment());setTestMode("final");setQi(0);setScores([]);setSubmittedAnswers([]);setAnswer("");setError("");setCanSkipChapter(false);setView("test");}
  function startChapterSceneTest(){
-   speech.current?.stop();setListening(false);setItems(chapterSceneQuestions);setTestMode("scene");setQi(0);setScores([]);setSceneAnswers([]);setAnswer("");setError("");setView("test");
+   speech.current?.stop();setListening(false);setItems(chapterSceneQuestions);setTestMode("scene");setQi(0);setScores([]);setSubmittedAnswers([]);setSceneAnswers([]);setAnswer("");setError("");setView("test");
  }
  async function ask(question=input){
    if(!question.trim()||chatBusy)return;
@@ -292,50 +298,71 @@ export default function LearningPlatform(){
    if(testMode==="scene"){
      const next=[...sceneAnswers,{question:item.prompt,answer:answer.trim()}];
      setSceneAnswers(next);
-     const attempt:RecentAttempt={moduleId:"L3-scene",moduleTitle:"L3 章节销售场景测试",question:item.prompt,answer:answer.trim(),score:100,hitPoints:["已完成销售场景表达"],missingPoints:[],blockers:[],createdAt:new Date().toISOString()};
+     const attempt:RecentAttempt={moduleId:"L3-scene",moduleTitle:"L3 综合测试",question:item.prompt,answer:answer.trim(),score:100,hitPoints:["已完成销售场景表达"],missingPoints:[],blockers:[],createdAt:new Date().toISOString()};
      const allAttempts=[...recentAttempts,attempt].slice(-40);setRecentAttempts(allAttempts);localStorage.setItem("l3-short-memory-v1",JSON.stringify(allAttempts));
      fetch("/api/assessment/record-response",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId,courseId:"L3-scene",questionId:item.id,userAnswer:answer.trim(),score:100,timeSpent:45})}).catch(()=>{});
      if(qi<chapterSceneQuestions.length-1){setQi(qi+1);setAnswer("");setBusy(false);return;}
      award("L3-final");localStorage.setItem("l3-scene-completed-v1",new Date().toISOString());setBusy(false);setView("chapterCelebration");return;
    }
    try{
-     const r=await fetch("/api/assessment/score",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({itemId:item.id,answer})});
-     if(!r.ok)throw new Error();
-     const s=await r.json() as ScoreResult;
-     setModelMode(s.mode);
-     const next=[...scores,s];
+     let next:ScoreResult[];
+     let entries:Array<{item:AssessmentItem;answer:string;score:ScoreResult}>;
+     if(testMode==="pre"){
+       const pending=[...submittedAnswers.filter(entry=>entry.itemId!==item.id),{itemId:item.id,answer:answer.trim()}];
+       setSubmittedAnswers(pending);
+       if(qi<items.length-1){setQi(qi+1);setAnswer("");return;}
+       const answersByItem=new Map(pending.map(entry=>[entry.itemId,entry.answer]));
+       const scored=await Promise.all(items.map(async assessedItem=>{
+         const submittedAnswer=answersByItem.get(assessedItem.id);
+         if(!submittedAnswer)throw new Error("Missing answer");
+         const response=await fetch("/api/assessment/score",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({itemId:assessedItem.id,answer:submittedAnswer})});
+         if(!response.ok)throw new Error("Scoring failed");
+         return await response.json() as ScoreResult;
+       }));
+       next=scored;setModelMode(scored[0]?.mode||"");
+       entries=items.map((assessedItem,index)=>({item:assessedItem,answer:answersByItem.get(assessedItem.id)||"",score:scored[index]}));
+     }else{
+       const response=await fetch("/api/assessment/score",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({itemId:item.id,answer:answer.trim()})});
+       if(!response.ok)throw new Error("Scoring failed");
+       const scored=await response.json() as ScoreResult;
+       setModelMode(scored.mode);
+       next=[...scores,scored];
+       entries=[{item,answer:answer.trim(),score:scored}];
+     }
      setScores(next);
-     const attempt:RecentAttempt={moduleId:item.moduleId,moduleTitle:mod.title,question:item.prompt,answer,score:s.total,hitPoints:s.hitPoints,missingPoints:s.missingPoints,blockers:s.blockers,createdAt:new Date().toISOString()};
-     const allAttempts=[...recentAttempts,attempt].slice(-40);
+     const newAttempts=entries.map(({item:scoredItem,answer:submittedAnswer,score:scored})=>{
+       const scoredModule=modules.find(module=>module.id===scoredItem.moduleId);
+       return {moduleId:scoredItem.moduleId,moduleTitle:scoredModule?.title||stageMeta[scoredItem.moduleId].title,question:scoredItem.prompt,answer:submittedAnswer,score:scored.total,hitPoints:scored.hitPoints,missingPoints:scored.missingPoints,blockers:scored.blockers,createdAt:new Date().toISOString()};
+     });
+     const allAttempts=[...recentAttempts,...newAttempts].slice(-40);
      setRecentAttempts(allAttempts);
      localStorage.setItem("l3-short-memory-v1",JSON.stringify(allAttempts));
 
-     fetch("/api/assessment/record-response",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId,courseId:item.moduleId,questionId:item.id,userAnswer:answer,score:s.total,timeSpent:30,misconception:s.blockers[0]})}).then(r=>r.json() as Promise<{diagnosis?:{misconceptionPatterns:string[]}}>).then(data=>{
-       if(data.diagnosis?.misconceptionPatterns) setDiagnosis(data.diagnosis.misconceptionPatterns);
-     }).catch(()=>{});
+     entries.forEach(({item:scoredItem,answer:submittedAnswer,score:scored})=>{
+       fetch("/api/assessment/record-response",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId,courseId:scoredItem.moduleId,questionId:scoredItem.id,userAnswer:submittedAnswer,score:scored.total,timeSpent:30,misconception:scored.blockers[0]})}).catch(()=>{});
+     });
 
-     if(qi<items.length-1){setQi(qi+1);setAnswer("");}else{
+     if(testMode!=="pre"&&qi<items.length-1){setQi(qi+1);setAnswer("");}else{
        const summary=summarize(next);
        const preTestResult=testMode==="pre"?getPreTestDiagnosis(next):null;
        const canSkip=preTestResult?.allPassed||false;
        setCanSkipChapter(canSkip);
-       setDiagnosis(testMode==="final"?(summary.total>=80&&!summary.blockers.length?["六大模块综合知识已达到通关标准"]:["总章节考核需达到 80 分，且不能出现关键误区"]):(preTestResult?.diagnosis||[]));
        if(testMode==="final"&&summary.total>=80&&!summary.blockers.length){award("L3-final");}
        const earned=(testMode==="pre"&&canSkip)||(testMode==="post"&&summary.total>=80&&!summary.blockers.length);
        if(testMode==="pre"&&canSkip){award(mid);}
        else if(testMode==="pre"){requireLearning(mid);}
        else if(testMode==="post"&&summary.total>=80&&!summary.blockers.length){award(mid);}
        const completedModules=new Set([...badges,...(earned?[mid]:[])]);
-       if(modules.every(m=>completedModules.has(m.id))){
-         const courseAttempts=allAttempts.filter(a=>modules.some(m=>m.id===a.moduleId));
-         const masteredPoints=Array.from(new Set(courseAttempts.flatMap(a=>a.hitPoints)));
-         const strugglingPoints=Array.from(new Set(courseAttempts.flatMap(a=>[...a.missingPoints,...a.blockers])));
-         const suggestions=Array.from(new Set(courseAttempts.filter(a=>a.score<80).map(a=>`回看 ${a.moduleId}「${a.moduleTitle}」，重练：${a.missingPoints.join("、")||a.blockers.join("、")||"本节核心要点"}`))).slice(0,5);
-         fetch("/api/user/memory",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId,courseId:"L3-SG-01",title:"L3 声光电基础",scores:courseAttempts.map(a=>a.score),masteredPoints,strugglingPoints,suggestions})}).then(r=>r.json() as Promise<{progressSummary?:string}>).then(data=>{if(data.progressSummary)setProgressSummary(data.progressSummary);}).catch(()=>{});
+       if(modules.every(module=>completedModules.has(module.id))){
+         const courseAttempts=allAttempts.filter(attempt=>modules.some(module=>module.id===attempt.moduleId));
+         const masteredPoints=Array.from(new Set(courseAttempts.flatMap(attempt=>attempt.hitPoints)));
+         const strugglingPoints=Array.from(new Set(courseAttempts.flatMap(attempt=>[...attempt.missingPoints,...attempt.blockers])));
+         const suggestions=Array.from(new Set(courseAttempts.filter(attempt=>attempt.score<80).map(attempt=>`回看 ${attempt.moduleId}「${attempt.moduleTitle}」，重练：${attempt.missingPoints.join("、")||attempt.blockers.join("、")||"本节核心要点"}`))).slice(0,5);
+         fetch("/api/user/memory",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({userId,courseId:"L3-SG-01",title:"L3 声光电基础",scores:courseAttempts.map(attempt=>attempt.score),masteredPoints,strugglingPoints,suggestions})}).then(response=>response.json() as Promise<{progressSummary?:string}>).then(data=>{if(data.progressSummary)setProgressSummary(data.progressSummary);}).catch(()=>{});
        }
-       setView("celebration");
+       setView(testMode==="pre"?"report":"celebration");
      }
-   }catch{setError("暂时无法完成分析，请稍后重试；你的回答已保留。");}finally{setBusy(false);}
+   }catch{setError(testMode==="pre"?"统一评分暂时不可用，所有回答已保留，请重试。":"暂时无法完成分析，请稍后重试；你的回答已保留。");}finally{setBusy(false);}
  }
  function dictate(){
    if(listening){speech.current?.stop();return;}
@@ -350,55 +377,67 @@ export default function LearningPlatform(){
  }
  function seek(s:number){if(video.current){video.current.currentTime=s;video.current.play().catch(()=>{});}}
 
- return <div className={`lp lp-pro ${collapsed?"lp-collapsed":""}`}>
+ const nextModule = modules.find(m=>!badges.includes(m.id)) || modules[0];
+ function enterStage(id:string){
+   if(!badges.includes(id)&&watched.includes(id))startTest(id,"post");
+   else if(!badges.includes(id)&&required.includes(id)&&!watched.includes(id))lesson(id);
+   else startTest(id);
+ }
+ return <div className="lp lp-pro">
   <aside className="lp-sidebar">
-    <div className="lp-brand"><span>半</span>{!collapsed&&<div><b>半岛黄埔军校</b><small>销售专业学习中心</small></div>}<button onClick={()=>collapse(!collapsed)}>{collapsed?"☰":"‹"}</button></div>
-    <button className={`lp-user-mini ${view==="assistant"?"active":""}`} onClick={()=>setView("assistant")} aria-label="进入半小岛对话首页"><span className="lp-mini-mascot"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><i>👋</i></span>{!collapsed&&<div><b>和半小岛聊聊</b><small>学习问题随时问我</small></div>}</button>
-    <button className={`lp-home-nav ${view==="personal"?"active":""}`} onClick={()=>setView("personal")}><span>⌂</span> {!collapsed&&"成长主页"}</button>
-    <button className={`lp-home-nav ${view!=="personal"&&view!=="assistant"?"active":""}`} onClick={()=>{setLevel(3);setView("overview")} }><span>▦</span> {!collapsed&&"课程闯关"}</button>
-    {!collapsed&&<p className="lp-nav-label">学习路径</p>}
-    <nav>{courses.map((name,i)=><div key={name}><button className={view!=="assistant"&&view!=="personal"&&level===i+1?"selected":""} onClick={()=>selectLevel(i+1)}><span>L{i+1}</span>{!collapsed&&<div><b>{name}</b></div>}</button></div>)}</nav>
-    {!collapsed&&<div className="lp-sidebar-progress"><div><span>本课程进度</span><b>{Math.round(chapterBadges.length/6*100)}%</b></div><i><em style={{width:`${chapterBadges.length/6*100}%`}}/></i></div>}
+    <div className="lp-brand"><span className="lp-brand-emblem"><AcademyEmblem/></span><div><b>医美军校</b><small>销售专业学习中心</small></div></div>
+    <button className={`lp-user-mini ${view==="assistant"?"active":""}`} onClick={()=>setView("assistant")} aria-label="进入半小岛对话首页"><span className="lp-mini-mascot"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><i>👋</i></span><div><b>和半小岛聊聊</b><small>学习问题随时问我</small></div></button>
+    <button className={`lp-home-nav ${view==="personal"?"active":""}`} onClick={()=>setView("personal")}><span><Home size={20} strokeWidth={2.6} aria-hidden="true"/></span> 成长主页</button>
+    <button className={`lp-home-nav ${view!=="personal"&&view!=="assistant"?"active":""}`} onClick={()=>{setLevel(3);setView("overview")} }><span><LayoutGrid size={20} strokeWidth={2.6} aria-hidden="true"/></span> 课程闯关</button>
+    <p className="lp-nav-label">学习路径</p>
+    <nav>{courses.map((name,i)=><div key={name} data-level={i+1}><button title={`L${i+1} · ${name}`} aria-label={`L${i+1} · ${name}`} aria-current={view!=="assistant"&&view!=="personal"&&level===i+1?"step":undefined} className={view!=="assistant"&&view!=="personal"&&level===i+1?"selected":""} onClick={()=>selectLevel(i+1)}><span className="lp-level-mark">L{i+1}</span><div><b>{name}</b></div></button></div>)}</nav>
+    <div className="lp-sidebar-progress"><div><span>本课程进度</span><b className="lp-numeric">{Math.round(chapterBadges.length/6*100)}%</b></div><i><em style={{width:`${chapterBadges.length/6*100}%`}}/></i></div>
   </aside>
   <div className="lp-main">
-    <header className="lp-topbar"><div><small>半岛医疗 / 专业成长计划</small><b>{view==="assistant"?"半小岛学习陪练":view==="personal"?"我的成长主页":`L${level} · ${courses[level-1]}`}</b></div><div className="lp-top-actions"><span>🔥 连续学习 1 天</span>{view!=="lesson"&&view!=="assistant"&&<button onClick={()=>setView("assistant")}>✦ 和半小岛聊聊</button>}</div></header>
+    <header className={view==="lesson"||view==="test"||view==="report"?"lp-topbar lp-course-topbar":"lp-topbar"}>{(view==="lesson"||view==="test"||view==="report")&&<button type="button" className="lp-secondary lp-course-topbar-back" aria-label="返回六关地图" title="返回六关地图" disabled={view==="test"&&busy} onClick={()=>{speech.current?.stop();setListening(false);setError("");setView("overview");}}><DirectionIcon direction="left" size={19}/></button>}<div className="lp-topbar-identity"><b>{view==="assistant"?"半小岛学习陪练":view==="personal"?"我的成长主页":<><span className="lp-level-mark">L{level}</span> · {courses[level-1]}</>}</b>{view==="lesson"&&<b className="lp-topbar-stage"><span className="lp-level-mark">{mid}</span> {stageMeta[mid].title}</b>}{view==="test"&&item&&<b className="lp-topbar-stage"><span className="lp-level-mark">{testMode==="scene"||testMode==="final"?"L3":item.moduleId}</span> · {testMode==="pre"?"课前挑战":testMode==="post"?"学习复测":testMode==="scene"?"销售场景挑战":"终局考核"}</b>}</div>{view==="lesson"&&<button className="lp-primary lp-posttest-cta" disabled={badges.includes(mid)||!videos[mid]||!watched.includes(mid)} onClick={()=>startTest(mid,"post")}>{watched.includes(mid)?<DirectionLabel>开始课后测试</DirectionLabel>:badges.includes(mid)?"本关已通关 · 视频选看":required.includes(mid)?"看完视频后复测":"看完视频后可参加课后测试"}</button>}{view==="test"&&item&&<div className="lp-exam-navigation-actions">{testMode==="pre"&&<button type="button" className="lp-secondary lp-skip-pretest" disabled={busy} onClick={()=>lesson(mid)}><DirectionLabel>跳过挑战，直接学习</DirectionLabel></button>}</div>}{view!=="lesson"&&view!=="test"&&view!=="report"&&<div className="lp-top-actions"><span>🔥 连续学习 1 天</span></div>}</header>
     {view==="assistant"?<section className={`lp-assistant-home ${historyCollapsed?"history-collapsed":""}`}>
-      <aside className="lp-chat-history"><div className="lp-history-toolbar"><button className="lp-history-toggle" onClick={()=>setHistoryCollapsed(!historyCollapsed)} aria-label={historyCollapsed?"展开会话列表":"收起会话列表"}>{historyCollapsed?"›":"‹"}</button>{!historyCollapsed&&<button className="lp-new-chat" onClick={createHomeChat}><span>＋</span>新建对话</button>}</div>{!historyCollapsed&&<><div className="lp-history-label">最近会话</div><div className="lp-history-list">{chatSessions.map(session=><article className={session.id===activeChatId?"active":""} key={session.id} onClick={()=>selectHomeChat(session.id)}><span>✦</span><div><b>{session.title}</b><small>{session.messages.at(-1)?.content.slice(0,28)}{(session.messages.at(-1)?.content.length||0)>28?"…":""}</small><time>{session.updatedAt}</time></div><button onClick={event=>{event.stopPropagation();deleteHomeChat(session.id)}} aria-label="删除会话">×</button></article>)}</div><div className="lp-history-memory"><b>共享长期记忆</b><p>课程进度、薄弱点和勋章会跨会话保留；每段对话拥有独立上下文。</p></div></>}</aside>
-      <div className="lp-chat-stage"><header><div><span className="lp-chat-avatar"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><i/></span><div><b>半小岛</b><small><em/> AI 学习陪练在线 · 已连接课程知识库</small></div></div><button onClick={createHomeChat}>＋ 新对话</button></header>
+      <aside className="lp-chat-history"><div className="lp-history-toolbar"><button className="lp-history-toggle" onClick={()=>setHistoryCollapsed(!historyCollapsed)} aria-label={historyCollapsed?"展开会话列表":"收起会话列表"}>{historyCollapsed?<DirectionIcon direction="chevron-right"/>:<DirectionIcon direction="chevron-left"/>}</button>{!historyCollapsed&&<button className="lp-new-chat" onClick={createHomeChat}><NewChatIcon size={19}/><span>新建对话</span></button>}</div>{!historyCollapsed&&<><div className="lp-history-label">最近会话</div><div className="lp-history-list">{chatSessions.map(session=><article className={session.id===activeChatId?"active":""} key={session.id} onClick={()=>selectHomeChat(session.id)}><span className="lp-history-icon" aria-hidden="true"><MessageCircle size={18} strokeWidth={2}/></span><div><b>{session.title}</b><small>{session.messages.at(-1)?.content.slice(0,28)}{(session.messages.at(-1)?.content.length||0)>28?"…":""}</small><time>{session.updatedAt}</time></div><button onClick={event=>{event.stopPropagation();deleteHomeChat(session.id)}} aria-label="删除会话">×</button></article>)}</div></>}</aside>
+      <div className="lp-chat-stage"><header><div><span className="lp-chat-avatar"><img src="/assets/peninsula-companion.webp" alt="半小岛"/></span><div><b>半小岛</b><small>AI 学习陪练在线 · 已连接课程知识库</small></div></div><button className="lp-chat-new-session" aria-label="新对话" title="新对话" onClick={createHomeChat}><NewChatIcon size={18}/></button></header>
         <div className="lp-chat-scroll">
-          <div className="lp-chat-thread">{activeChat?.messages.map((message,index)=><div className={`lp-chat-message ${message.role}`} key={`${activeChat.id}-${index}`}><div className="lp-message-content">{message.role==="assistant"&&<img src="/assets/peninsula-companion.webp" alt=""/>}<div><p>{message.content}</p>{message.role==="assistant"&&index===activeChat.messages.length-1&&activeChat.suggestedModules.length>0&&<div className="lp-message-courses">{activeChat.suggestedModules.map(id=>{const course=modules.find(module=>module.id===id);return course?<button key={id} onClick={()=>lesson(id)}>相关课程：{id} · {stageMeta[id].title}<span>查看 →</span></button>:null})}</div>}</div></div></div>)}{homeChatBusy&&<div className="lp-chat-message assistant"><div className="lp-message-content"><img src="/assets/peninsula-companion.webp" alt=""/><div><p className="lp-thinking"><i/><i/><i/>正在结合你的学习记录思考</p></div></div></div>}<div ref={homeChatEnd}/></div>
+          <div className="lp-chat-thread">{activeChat?.messages.map((message,index)=><div className={`lp-chat-message ${message.role}`} key={`${activeChat.id}-${index}`}><div className="lp-message-content">{message.role==="assistant"&&<img src="/assets/peninsula-companion.webp" alt=""/>}<div><p>{message.content}</p>{message.role==="assistant"&&index===activeChat.messages.length-1&&activeChat.suggestedModules.length>0&&<div className="lp-message-courses">{activeChat.suggestedModules.map(id=>{const course=modules.find(module=>module.id===id);return course?<button key={id} onClick={()=>lesson(id)}>相关课程：{id} · {stageMeta[id].title}<DirectionLabel size={14}>查看</DirectionLabel></button>:null})}</div>}</div></div></div>)}{homeChatBusy&&<div className="lp-chat-message assistant"><div className="lp-message-content"><img src="/assets/peninsula-companion.webp" alt=""/><div><p className="lp-thinking"><i/><i/><i/>正在结合你的学习记录思考</p></div></div></div>}<div ref={homeChatEnd}/></div>
         </div>
-        <div className="lp-composer-shell"><div className="lp-chat-quick">{["今天我该学什么？","帮我复盘最近的薄弱点","练一道客户异议题"].map(text=><button type="button" key={text} disabled={homeChatBusy} onClick={()=>askHomeChat(text)}>{text}</button>)}</div><form className="lp-chat-composer" onSubmit={event=>{event.preventDefault();askHomeChat()}}><textarea value={homeChatInput} onChange={event=>setHomeChatInput(event.target.value)} placeholder="问课程难点、学习进度，或描述一个客户沟通场景…"/><div className="lp-composer-actions"><span>仅依据课程资料回答 · 不提供个体治疗建议</span><div className="lp-composer-buttons"><ChatVoiceButton value={homeChatInput} onChange={setHomeChatInput} disabled={homeChatBusy}/><button className="lp-primary" disabled={homeChatBusy||!homeChatInput.trim()}>发送</button></div></div></form></div>
+        <div className="lp-composer-shell"><div className="lp-chat-quick">{["今天我该学什么？","帮我复盘最近的薄弱点","练一道客户异议题"].map(text=><button type="button" key={text} disabled={homeChatBusy} onClick={()=>askHomeChat(text)}>{text}</button>)}</div><form className="lp-chat-composer" onSubmit={event=>{event.preventDefault();askHomeChat()}}><textarea value={homeChatInput} onChange={event=>setHomeChatInput(event.target.value)} placeholder="问课程难点、学习进度，或描述一个客户沟通场景…"/><div className="lp-composer-buttons"><ChatVoiceButton value={homeChatInput} onChange={setHomeChatInput} onSend={()=>askHomeChat()} disabled={homeChatBusy}/></div></form></div>
       </div>
-    </section>:view==="personal"?<section className="lp-content"><div className="lp-section-title"><div><small>MY LEARNING SPACE</small><h2>早上好，{profile?.name||"学员"}</h2></div><p>你的私人助教正在持续了解你的学习进度</p></div><PersonalHome userId={userId} onOpenAssistant={()=>setView("assistant")}/><button className="lp-primary" onClick={()=>{setLevel(3);setView("overview")}}>进入课程学习 →</button></section>:level!==3?<section className="lp-placeholder"><div>◇</div><small>L{level} · PREPARING</small><h1>{courses[level-1]}</h1><p>该阶段将统一采用“小节课前挑战 → 视频学习 → 复测夺章 → L{level} 总章节语音考核”的闯关结构。课程内容和题库正在建设中。</p><div className="lp-placeholder-final"><span>🏆</span><div><b>L{level} 总章节语音考核</b><small>完成本阶段全部小节后解锁 · 80 分通关</small></div><button disabled>待课程开放</button></div><button className="lp-primary" onClick={()=>selectLevel(3)}>先体验 L3 完整流程 →</button></section>:<>
-    {view==="overview"&&<section className="lp-content" id="course-center">
-      <div className="lp-hero-pro"><div className="lp-hero-copy"><span className="lp-kicker">L3 · 声光电基础冒险</span><h1>看懂能量，<br/><em>赢下专业表达。</em></h1><p>课前自测可选：80 分达标即可获得勋章，视频选看；未达标则看完视频，再完成课后测试。</p><div className="lp-hero-actions"><button className="lp-primary" onClick={()=>startTest(modules.find(m=>!badges.includes(m.id))?.id||"P1")}>继续闯关 →</button><button className="lp-secondary" onClick={()=>setView("personal")}>查看成长档案</button></div></div><div className="lp-hero-mascot"><div className="lp-orbit"><span>{chapterBadges.length}/6</span><small>章节勋章</small></div><img src="/assets/peninsula-companion.webp" alt="半岛大超炮学习助手"/><div className="lp-mascot-quote">“今天，再拿下一关！”</div></div></div>
-      <div className="lp-overview-strip"><div><small>当前称号</small><b>{badges.includes("L3-final")?"声光电通关者":chapterBadges.length>=4?"能量进阶者":chapterBadges.length?"能量探索者":"知识新兵"}</b></div><div><small>课程完成度</small><b>{Math.round(chapterBadges.length/6*100)}%</b></div><div><small>终局考核</small><b>{badges.includes("L3-final")?"已通关":"80 分解锁"}</b></div><div><small>AI 学习模式</small><b>实时陪练</b></div></div>
-      <div className="lp-section-title"><div><small>CHALLENGE MAP</small><h2>六关能力地图</h2></div><p>课前挑战 → 精准学习 → 复测夺章</p></div>
-      <div className="lp-challenge-grid">{modules.map((m,i)=>{const done=badges.includes(m.id),videoReady=Boolean(videos[m.id]),needsCourse=required.includes(m.id),hasWatched=watched.includes(m.id);const status=done?"🎖 已夺章":hasWatched?"课后测试待完成":needsCourse?"看课后再复测":"可先自测";const action=hasWatched&&!done?"post":needsCourse&&!hasWatched?"lesson":"pre";return <article className={done?"done":""} key={m.id}><div className="lp-stage-top"><span className="lp-stage-no">0{i+1}</span><span className="lp-stage-icon">{stageMeta[m.id].icon}</span><span className={`lp-stage-status ${done?"done":""}`}>{status}</span></div><small>{m.id} · 第 {i+1} 关</small><h3>{stageMeta[m.id].title}</h3><p>{stageMeta[m.id].kicker}</p><div className="lp-stage-tags"><span>{videoReady?"▶ 真实课程视频":"视频制作中"}</span><span>{done?"视频选看":needsCourse?hasWatched?"已看课 · 待复测":"已生成补学路径":hasWatched?"视频已看 · 可课后测":"课前自测 · 3 道题"}</span></div><div className="lp-stage-actions"><button className="lp-primary" onClick={()=>action==="post"?startTest(m.id,"post"):action==="lesson"?lesson(m.id):startTest(m.id)}>{done?"再次挑战":action==="post"?"开始课后测试":action==="lesson"?"去看课程":"课前自测"}</button><button className="lp-text" onClick={()=>lesson(m.id)}>进入课堂 →</button></div>{done&&<div className="lp-medal-mini">🎖</div>}</article>})}</div>
-      <section className="lp-final-gate unlocked lp-scene-gate"><div className="lp-final-mark">🎙️</div><div><small>L3 SALES SCENARIO CHALLENGE</small><h2>章节销售场景测试</h2><p>演示模式已开放，无需完成六节课即可进入。5 道真实销售场景题，全程语音作答；以完成和复盘为目标，不显示分数。</p><div className="lp-scene-tags"><span>5 道场景题</span><span>语音作答</span><span>完成即通关</span><span>生成学习旅程报告</span></div></div><button className="lp-primary" onClick={startChapterSceneTest}>{badges.includes("L3-final")?"再次练习销售场景":"开始章节场景测试 →"}</button></section>
+    </section>:view==="personal"?<section className="lp-content"><div className="lp-section-title"><div><small>MY LEARNING SPACE</small><h2>早上好，{profile?.name||"学员"}</h2></div><p>你的私人助教正在持续了解你的学习进度</p></div><PersonalHome userId={userId} onOpenAssistant={()=>setView("assistant")}/><div className="lp-personal-course-action"><button className="lp-primary" onClick={()=>{setLevel(3);setView("overview")}}><DirectionLabel>进入课程学习</DirectionLabel></button></div></section>:level!==3?<section className="lp-placeholder"><div>◇</div><small><span className="lp-level-mark">L{level}</span> · PREPARING</small><h1>{courses[level-1]}</h1><p>该阶段将依次完成小节课前挑战、视频学习、复测夺章与 <span className="lp-level-mark">L{level}</span> 总章节语音考核。课程内容和题库正在建设中。</p><div className="lp-placeholder-final"><span>🏆</span><div><b><span className="lp-level-mark">L{level}</span> 总章节语音考核</b><small>完成本阶段全部小节后解锁 · 80 分通关</small></div><button disabled>待课程开放</button></div><button className="lp-primary" onClick={()=>selectLevel(3)}><DirectionLabel>先体验 <span className="lp-level-mark">L3</span> 完整流程</DirectionLabel></button></section>:<>
+    {view==="overview"&&<section className="lp-content lp-course-overview" id="course-center">
+      <div className="course-intro"><div><span className="course-eyebrow"><span className="lp-level-mark">L3</span> · 声光电基础</span><h1>看懂能量，赢下专业表达。</h1><p>从理解能量到判断设备，沿着六关练出有依据的专业表达。</p><div className="course-intro-actions"><button className="lp-primary" onClick={()=>enterStage(nextModule.id)}><DirectionLabel direction="up-right">{chapterBadges.length===6?"重温第一关":"继续学习 · "+nextModule.id}</DirectionLabel></button></div></div><div className="course-progress"><span>本章已完成</span><div><strong className="lp-numeric">{chapterBadges.length}</strong><span>/ 6 关</span></div><progress value={chapterBadges.length} max={6} aria-label="六关课程完成进度"/><small>{chapterBadges.length===6?"六关已通关，去综合测试练练表达":"下一步："+stageMeta[nextModule.id].title}</small></div></div>
+      <div className="lp-section-title"><div><h2>六关能力地图</h2></div><p>课前挑战、精准学习与复测夺章</p></div>
+      <div className="lp-challenge-grid">{modules.map((m,i)=>{
+        const done=badges.includes(m.id),current=!done&&m.id===nextModule.id,needsCourse=required.includes(m.id),hasWatched=watched.includes(m.id);
+        const action=done?"pre":hasWatched?"post":needsCourse?"lesson":"pre";
+        return <article className={done?"done":current?"is-current":"is-ready"} key={m.id} aria-label={"第 "+String(i+1).padStart(2,"0")+" 关 "+stageMeta[m.id].title+(current?"，建议继续":"")}>
+          <div className="lp-stage-top"><span className="lp-stage-order">第 {String(i+1).padStart(2,"0")} 关</span><span className={`lp-stage-status${done?" done":""}`}>{done?"✓ 已完成":current?"● 建议继续":"可学习"}</span></div>
+          <h3>{stageMeta[m.id].title}</h3>
+          <p className="lp-stage-outcome">{["讲清能量如何改变组织","解释光的传播与选择性吸收","理解电流、阻抗与生热的关系","区分机械波传播与聚焦作用","结合参数判断组织反应与风险","用六问框架建立设备判断思路"][i]}</p>
+          <div className="lp-stage-actions"><button className="lp-primary stage-main-action" onClick={()=>enterStage(m.id)}><DirectionLabel>{done?"再次挑战":action==="post"?"课后复测":action==="lesson"?"开始学习":"课前自测"}</DirectionLabel></button>{action!=="lesson"&&<button className="lp-secondary stage-course-action" onClick={()=>lesson(m.id)}>查看课程</button>}</div>
+        </article>;
+      })}</div>
+      <section className="course-final"><div className="course-final-icon" aria-hidden="true">✦</div><div><h2><span className="lp-level-mark">L3</span> 综合测试</h2><p>把学到的原理，转化为客户听得懂的专业表达。</p></div><button className="lp-primary" onClick={startChapterSceneTest}><DirectionLabel>{badges.includes("L3-final")?"再次练习":"开始综合测试"}</DirectionLabel></button></section>
     </section>}
     {view==="lesson"&&<section className="lp-content lp-lesson-page">
-      <div className="lp-breadcrumb"><button onClick={()=>setView("overview")}>L3 闯关地图</button><span>/</span><b>{mid} {stageMeta[mid].title}</b></div>
-      <div className="lp-lesson-heading"><div><span className="lp-kicker">STAGE {mid.slice(1).padStart(2,"0")}</span><h1>{stageMeta[mid].title}</h1><p>{mod.objective}</p></div><button className="lp-primary lp-posttest-cta" disabled={badges.includes(mid)||!videos[mid]||!watched.includes(mid)} onClick={()=>startTest(mid,"post")}>{badges.includes(mid)?"本关已通关 · 视频选看":watched.includes(mid)?"开始课后测试 →":required.includes(mid)?"看完视频后复测":"看完视频后可参加课后测试"}</button></div>
+      <div className="lp-lesson-heading"><article className="lp-card lp-ai-guide"><div><span className="lp-ai-guide-title">✦ AI 课程导览</span></div><p>{lessonGuide[mid]||"正在整理本节学习主线…"}</p></article></div>
       <div className="lp-workspace">
         <div className="lp-lesson-media-column">
-          <div className="lp-video-timeline"><div className="lp-video-timeline-heading"><b>本节关键点</b><span>点击节点，快速定位视频内容</span></div><div className="lp-video-timeline-track">{(publishedVideoNodes[mid]||[]).map(([ratio,label],i)=><button key={label} disabled={!videos[mid]} onClick={()=>seek(videoDuration*ratio)}><time>{videoDuration&&videos[mid]?time(videoDuration*ratio):String(i+1).padStart(2,"0")}</time><span>{label}</span></button>)}</div></div>
           <div className="lp-player">{videos[mid]?<video key={mid} ref={video} controls preload="metadata" src={videos[mid]} onLoadedMetadata={e=>{const duration=e.currentTarget.duration;setVideoDuration(duration);if(pendingSeek>0){e.currentTarget.currentTime=duration*pendingSeek;e.currentTarget.play().catch(()=>{});setPendingSeek(0);}}} onEnded={markWatched}/>:<div className="lp-video-empty"><span>{stageMeta[mid].icon}</span><small>COMING SOON</small><h3>{mid} 课程视频制作中</h3><p>知识导览与 AI 助教仍可使用，视频上线后会在这里呈现。</p></div>}</div>
-          <div className="lp-video-meta"><div><b>{mid} · {mod.title}</b><span>{videoDuration?time(videoDuration):videos[mid]?"正在读取课程时长":"视频待上线"}</span></div><button className="lp-secondary" disabled={!videos[mid]||!watched.includes(mid)}>{watched.includes(mid)?"✓ 已完整观看":videos[mid]?"播放至片尾后解锁复测":"视频待上线"}</button></div>
-          <article className="lp-card lp-ai-guide"><div><span>✦ AI 课程导览</span><small>{modelMode==="ai"?"结合本节脚本生成":"课程导览"}</small></div><p>{lessonGuide[mid]||"正在整理本节学习主线…"}</p></article>
+          <div className="lp-video-timeline"><div className="lp-video-timeline-heading"><b>本节关键点</b><span>点击节点，快速定位视频内容</span></div><div className="lp-video-timeline-track">{(publishedVideoNodes[mid]||[]).map(([ratio,label],i)=><button key={label} disabled={!videos[mid]} onClick={()=>seek(videoDuration*ratio)}><time>{videoDuration&&videos[mid]?time(videoDuration*ratio):String(i+1).padStart(2,"0")}</time><span>{label}</span></button>)}</div></div>
         </div>
         <aside className="lp-tutor lp-lesson-tutor">
           <div className="lp-tutor-heading"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><b>半小岛 · AI 视频助教</b><small>{modelMode==="ai"?"真实模型在线":"依据本节资料答疑"}</small></div></div>
           <div className="lp-prompt-buttons">{["三句话总结本关","本关最容易错什么？","给我一个通俗比喻"].map(q=><button key={q} onClick={()=>ask(q)}>{q}</button>)}</div>
           <div className="lp-chat">{messages.map((m,i)=><div key={i} className={m.role}><p>{m.content}</p></div>)}{chatBusy&&<div className="assistant"><p>正在思考…</p></div>}<div ref={chatEnd}/></div>
-          <form onSubmit={e=>{e.preventDefault();ask();}}><textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="对视频内容有疑问？直接问我…"/><button className="lp-primary" disabled={chatBusy||!input.trim()}>发送 ↑</button></form><small className="lp-tutor-note">仅依据课程资料回答 · 不提供个体治疗建议</small>
+          <form onSubmit={e=>{e.preventDefault();ask();}}><textarea value={input} onChange={e=>setInput(e.target.value)} placeholder="对视频内容有疑问？直接问我…"/><ChatVoiceButton value={input} onChange={setInput} onSend={()=>ask()} disabled={chatBusy} compact/></form>
         </aside>
       </div>
     </section>}
     {view==="test"&&item&&<section className="lp-content lp-exam">
-      <button className="lp-text lp-back" onClick={()=>setView("overview")}>‹ 退出本次挑战</button>
-      <div className="lp-exam-top"><div><span className="lp-kicker">{testMode==="scene"?"L3 SALES SCENARIO CHALLENGE":testMode==="final"?"L3 FINAL BATTLE":`${item.moduleId} · ${testMode==="pre"?"课前挑战":"学习复测"}`}</span><h1>{testMode==="scene"?"章节销售场景测试":testMode==="final"?"声光电终局语音考核":stageMeta[item.moduleId].title}</h1><p>{testMode==="scene"?"共 5 道真实销售场景题。请像面对客户一样用语音作答；本测试不打分，以完成和复盘为主。":testMode==="final"?"六个模块各一道综合题，80 分且无关键误区即可获得总勋章。":"回答三个问题，检验你是否真正掌握本关核心。"}</p></div><div className="lp-exam-progress"><b>{qi+1}</b><span>/ {items.length}</span></div></div>
+      <div className="lp-exam-navigation">
+        <div className="lp-exam-title"><h1>{testMode==="scene"?"L3 综合测试":testMode==="final"?"声光电终局语音考核":stageMeta[item.moduleId].title}</h1>{(testMode==="scene"||testMode==="final")&&<p>{testMode==="scene"?"共 5 道真实销售场景题。请像面对客户一样用语音作答；本测试不打分，以完成和复盘为主。":"六个模块各一道综合题，80 分且无关键误区即可获得总勋章。"}</p>}</div>
+      </div>
       <div className="lp-exam-layout">
         <aside><img src="/assets/peninsula-companion.webp" alt="考核陪伴助手"/><h2>{listening?"我在认真听…":testMode==="scene"?"把我当成客户吧":"准备好了吗？"}</h2><p>{listening?"说完后点击结束录音，你仍可以修改识别文字。":testMode==="scene"?"不用追求标准答案，重点是把判断逻辑说清楚、让客户听得懂。":"建议用自己的话讲清楚逻辑，不必背标准答案。"}</p><div className="lp-test-steps">{items.map((q,i)=><span className={i===qi?"active":i<qi?"done":""} key={q.id}>{i<qi?"✓":i+1}</span>)}</div></aside>
         <div className="lp-exam-question">
@@ -406,43 +445,40 @@ export default function LearningPlatform(){
           <h2>{item.prompt}</h2>
           <label htmlFor="answer">你的回答（语音转写后可以修改）</label><textarea id="answer" value={answer} onChange={e=>setAnswer(e.target.value)} placeholder="点击下方麦克风开始回答，或直接输入你的理解…"/>
           <div className="lp-answer-actions">
-            <button className={`lp-voice ${listening?"recording":""}`} disabled={!voiceSupported} onClick={dictate}><span>{listening?"■":"●"}</span>{listening?"结束录音":"语音回答"}</button>
-            <button className="lp-primary" disabled={busy||!answer.trim()} onClick={submit}>{busy?(testMode==="scene"?"正在保存回答…":"AI 正在分析…"):qi===items.length-1?(testMode==="scene"?"完成章节测试 →":"完成挑战并评分 →"):"提交，下一题 →"}</button>
+            <button type="button" className={`lp-voice ${listening?"recording":""}`} aria-label={listening?"结束录音":"语音回答"} title={listening?"结束录音":"语音回答"} disabled={!voiceSupported} onClick={dictate}>{listening?<Square size={19} strokeWidth={2.7} aria-hidden="true"/>:<Mic size={22} strokeWidth={2.7} aria-hidden="true"/>}</button>
+            <button className={`lp-primary ${busy&&testMode==="pre"&&qi===items.length-1?"lp-scoring":""}`} disabled={busy||!answer.trim()} onClick={submit}>{busy?(testMode==="pre"&&qi===items.length-1?<span className="lp-scoring-state" aria-live="polite"><Sparkles size={18} strokeWidth={2.6} aria-hidden="true"/><span>正在评分</span></span>:testMode==="scene"?"正在保存回答…":testMode==="pre"?"正在保存答案…":"AI 正在分析…"):<DirectionLabel>{qi===items.length-1?(testMode==="scene"?"完成综合测试":"完成挑战并评分"):"提交，下一题"}</DirectionLabel>}</button>
           </div>
           {!voiceSupported&&<p className="lp-help">当前浏览器不支持语音识别，请使用最新版 Chrome / Edge，或直接文字作答。</p>}
           {error&&<p className="lp-error">{error}</p>}
         </div>
       </div>
     </section>}
-    {view==="chapterCelebration"&&<section className="lp-content lp-chapter-pass"><article className="lp-chapter-pass-card"><div className="lp-chapter-pass-glow"/><img src="/assets/peninsula-companion.webp" alt="半小岛为学员庆祝"/><span className="lp-kicker">L3 CHAPTER COMPLETED</span><div className="lp-chapter-pass-icon">🏆</div><h1>恭喜你完成了本章节的所有测试，顺利通关！</h1><p>{profile?.name||"同学"}，你已经完成 5 个真实销售场景的表达练习。这里不以分数定义你，而是记录你如何把专业知识转化为客户听得懂、愿意继续沟通的表达。</p><div className="lp-chapter-pass-stats"><div><b>5 / 5</b><small>场景作答完成</small></div><div><b>语音</b><small>真实表达练习</small></div><div><b>已点亮</b><small>L3 章节通关</small></div></div><button className="lp-primary" onClick={()=>setView("chapterJourney")}>查看本章节学习旅程 →</button></article></section>}
+    {view==="chapterCelebration"&&<section className="lp-content lp-chapter-pass"><article className="lp-chapter-pass-card"><div className="lp-chapter-pass-glow"/><img src="/assets/peninsula-companion.webp" alt="半小岛为学员庆祝"/><span className="lp-kicker"><span className="lp-level-mark">L3</span> CHAPTER COMPLETED</span><div className="lp-chapter-pass-icon">🏆</div><h1>恭喜你完成了本章节的所有测试，顺利通关！</h1><p>{profile?.name||"同学"}，你已经完成 5 个真实销售场景的表达练习。这里不以分数定义你，而是记录你如何把专业知识转化为客户听得懂、愿意继续沟通的表达。</p><div className="lp-chapter-pass-stats"><div><b className="lp-numeric">5 / 5</b><small>场景作答完成</small></div><div><b>语音</b><small>真实表达练习</small></div><div><b>已点亮</b><small><span className="lp-level-mark">L3</span> 章节通关</small></div></div><button className="lp-primary" onClick={()=>setView("chapterJourney")}><DirectionLabel>查看本章节学习旅程</DirectionLabel></button></article></section>}
     {view==="chapterJourney"&&<section className="lp-content lp-journey-report">
-      <div className="lp-journey-hero"><div><span className="lp-kicker">L3 LEARNING JOURNEY</span><h1>{profile?.name||"学员"}的声光电基础<br/>章节学习旅程</h1><p>从知识理解到销售表达，本页汇总你的学习足迹，并根据本次 5 道场景回答给出下一步优化方法。</p></div><img src="/assets/peninsula-companion.webp" alt="半小岛学习陪练"/></div>
+      <div className="lp-journey-hero"><div><span className="lp-kicker"><span className="lp-level-mark">L3</span> LEARNING JOURNEY</span><h1>{profile?.name||"学员"}的声光电基础<br/>章节学习旅程</h1><p>从知识理解到销售表达，本页汇总你的学习足迹，并根据本次 5 道场景回答给出下一步优化方法。</p></div><img src="/assets/peninsula-companion.webp" alt="半小岛学习陪练"/></div>
       <div className="lp-journey-metrics"><div><small>章节测试</small><b>5 道场景题已完成</b></div><div><small>课程足迹</small><b>{watched.length} 节视频已观看</b></div><div><small>阶段成果</small><b>{chapterBadges.length} 枚小节勋章</b></div><div><small>陪练方式</small><b>语音表达 + 复盘</b></div></div>
-      <section className="lp-journey-path"><h2>本章节，你完成了这些关键动作</h2><div><article><span>01</span><b>建立知识框架</b><p>理解能量、传播、层次、靶组织、组织反应与效果之间的关系。</p></article><i>→</i><article><span>02</span><b>进入销售场景</b><p>面对客户疑问，练习把专业机制转化为清晰、合规的表达。</p></article><i>→</i><article><span>03</span><b>完成章节通关</b><p>连续完成 5 道场景题，形成可继续复盘的真实回答记录。</p></article></div></section>
+      <section className="lp-journey-path"><h2>本章节，你完成了这些关键动作</h2><div><article><span>01</span><b>建立知识框架</b><p>理解能量、传播、层次、靶组织、组织反应与效果之间的关系。</p></article><DirectionIcon size={20} className="lp-journey-arrow"/><article><span>02</span><b>进入销售场景</b><p>面对客户疑问，练习把专业机制转化为清晰、合规的表达。</p></article><DirectionIcon size={20} className="lp-journey-arrow"/><article><span>03</span><b>完成章节通关</b><p>连续完成 5 道场景题，形成可继续复盘的真实回答记录。</p></article></div></section>
       <section className="lp-scene-review"><div className="lp-section-title"><div><small>ANSWER REVIEW</small><h2>本次回答的优化点与方法</h2></div><p>不打分，只提供下一次可以直接使用的改进动作</p></div><div className="lp-scene-review-list">{sceneAnswers.map((entry,index)=>{const advice=analyzeSceneAnswer(entry.answer,index);return <article key={entry.question}><header><span>场景 {String(index+1).padStart(2,"0")}</span><h3>{entry.question}</h3></header><div className="lp-scene-answer"><small>你的回答</small><p>{entry.answer}</p></div><div className="lp-scene-advice"><div><small>观察</small><p>{advice.observation}</p></div><div><small>优先优化</small><b>{advice.focus}</b><p>{advice.action}</p></div></div></article>})}</div></section>
-      <section className="lp-next-practice"><div><span>✦ 半小岛的下一步建议</span><h2>继续练习“客户语言 + 专业依据 + 下一步行动”</h2><p>下一次回答时，先承接客户关注点，再说明判断依据，最后给出安全、明确且可执行的后续建议。这个结构会让专业表达更稳，也更容易建立信任。</p></div><div className="lp-next-practice-actions"><button className="lp-secondary" onClick={startChapterSceneTest}>再练一次场景题</button><button className="lp-primary" onClick={()=>setView("overview")}>返回课程闯关地图 →</button></div></section>
+      <section className="lp-next-practice"><div><span>✦ 半小岛的下一步建议</span><h2>继续练习“客户语言 + 专业依据 + 下一步行动”</h2><p>下一次回答时，先承接客户关注点，再说明判断依据，最后给出安全、明确且可执行的后续建议。这个结构会让专业表达更稳，也更容易建立信任。</p></div><div className="lp-next-practice-actions"><button className="lp-secondary" onClick={startChapterSceneTest}>再练一次场景题</button><button className="lp-primary" onClick={()=>setView("overview")}><DirectionLabel>返回课程闯关地图</DirectionLabel></button></div></section>
     </section>}
-    {view==="celebration"&&<section className="lp-content lp-ceremony-page"><article className="lp-certificate"><div className="lp-certificate-spark">✦</div><span className="lp-kicker">PENINSULA LEARNING MOMENT</span><div className="lp-certificate-seal">🏅</div><h1>学习表现荣誉证书</h1><p className="lp-certificate-recipient">颁发给 <b>{profile?.name||"盛思婕"}</b></p><p className="lp-certificate-course">{testMode==="final"?"L3 声光电基础 · 总章节挑战":`${mid} · ${modules.find(m=>m.id===mid)?.title||"章节挑战"}`}</p><div className="lp-certificate-score"><strong>{total}</strong><span>分</span><i>/ 100</i></div><h2>{total>=90?"优秀表现，真的很棒！":total>=80?"出色完成，继续保持！":"每一次认真作答，都在让你更进一步。"}</h2><p className="lp-certificate-praise">{total>=90?`${profile?.name||"同学"}，你对课程要点的掌握非常扎实。这份高分是认真学习的最好证明，继续带着这份自信闯关吧！`:total>=80?"你已经展现出很好的理解力，稳定地把知识点说出来就是专业成长。下一关也一起加油！":"感谢你认真完成挑战。测评会帮我们找到下一步学习方向，带着收获继续练习，你一定会越来越熟练。"}</p><div className="lp-certificate-footer"><span>半岛黄埔军校 · 学习陪练</span><b>半小岛 为你加油</b></div><button className="lp-primary lp-certificate-continue" onClick={()=>setView("report")}>查看 AI 答题分析 →</button></article></section>}
-    {view==="report"&&<section className="lp-content">
+    {view==="celebration"&&<section className="lp-content lp-ceremony-page"><article className="lp-certificate"><div className="lp-certificate-spark">✦</div><span className="lp-kicker">PENINSULA LEARNING MOMENT</span><div className="lp-certificate-seal">🏅</div><h1>学习表现荣誉证书</h1><p className="lp-certificate-recipient">颁发给 <b>{profile?.name||"盛思婕"}</b></p><p className="lp-certificate-course">{testMode==="final"?"L3 声光电基础 · 总章节挑战":`${mid} · ${modules.find(m=>m.id===mid)?.title||"章节挑战"}`}</p><div className="lp-certificate-score"><strong className="lp-numeric">{total}</strong><span>分</span><i>/ 100</i></div><h2>{total>=90?"优秀表现，真的很棒！":total>=80?"出色完成，继续保持！":"每一次认真作答，都在让你更进一步。"}</h2><p className="lp-certificate-praise">{total>=90?`${profile?.name||"同学"}，你对课程要点的掌握非常扎实。这份高分是认真学习的最好证明，继续带着这份自信闯关吧！`:total>=80?"你已经展现出很好的理解力，稳定地把知识点说出来就是专业成长。下一关也一起加油！":"感谢你认真完成挑战。测评会帮我们找到下一步学习方向，带着收获继续练习，你一定会越来越熟练。"}</p><div className="lp-certificate-footer"><span>医美军校 · 学习陪练</span><b>半小岛 为你加油</b></div><button className="lp-primary lp-certificate-continue" onClick={()=>setView("report")}><DirectionLabel>查看 AI 答题分析</DirectionLabel></button></article></section>}
+    {view==="report"&&<section className="lp-content lp-challenge-report">
       <div className="lp-report-header lp-report-pro">
         <img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><span className="lp-kicker">{testMode==="final"?"FINAL REPORT":`${mid} CHALLENGE REPORT`}</span><h1>{passed?(testMode==="final"?"终局通关，专业力已点亮！":canSkipChapter?"一测通关，直接拿章！":"复测成功，本关拿下！"):total>=90?"高分表现，专业度很亮眼！":"你的认真作答，正在变成专业底气"}</h1><p>{passed?"太棒了！你已经清楚表达关键知识点，继续带着这份自信迎接下一关。":total>=90?`拿到 ${total} 分，表现非常出色！AI 发现一处值得再校准的表达，下面一起看看，修正后就离通关更近一步。`:"你已经打下很好的基础，AI 帮你找到下一步最值得补强的要点。每次练习都在进步。"}</p></div>
-        <div className={`lp-total ${passed?"pass":""}`}><strong>{total}</strong><span>/100</span></div>
+        <div className={`lp-total ${passed?"pass":""}`}><strong className="lp-numeric">{total}</strong><span>/100</span></div>
       </div>
-      {diagnosis.length>0&&<div className="lp-diagnosis"><h4>诊断</h4><p>{diagnosis.join(" · ")}</p></div>}
       {blockers.length>0&&<div className="lp-error">误区：{blockers.join("；")}</div>}
       <div className="lp-report-layout">
-        <div>{scores.map((s,i)=><article className="lp-card" key={s.itemId}><h3>{items[i].prompt}</h3><b>{s.total} 分</b><p>{s.feedback.gap}</p>{s.missingPoints.length>0&&<div className="lp-missing-guide"><small>本题遗漏要点 · 建议观看位置</small>{s.missingPoints.map(point=>{const target=locateVideoNode(items[i].moduleId,point);return <button key={point} onClick={()=>lesson(items[i].moduleId,target?.[0]||0)}><span>{point}</span><b>{target?.[1]||"本节关键知识点"} · 点击回看 →</b></button>})}</div>}</article>)}</div>
+        <div>{scores.map((s,i)=><article className="lp-card lp-report-answer" key={s.itemId}><div className="lp-report-card-heading"><h3>{items[i].prompt}</h3><div className="lp-report-score" aria-label={`得分 ${s.total} 分`}><b className="lp-numeric">{s.total}</b><span>分</span></div></div><div className="lp-report-analysis"><div className="lp-report-analysis-label"><Sparkles size={15} strokeWidth={2.4} aria-hidden="true"/><span>AI 分析</span></div><p>{s.feedback.gap}</p></div>{s.missingPoints.length>0&&<div className="lp-missing-guide"><small>本题遗漏要点 · 建议观看位置</small>{s.missingPoints.map(point=>{const target=locateVideoNode(items[i].moduleId,point);return <button key={point} onClick={()=>lesson(items[i].moduleId,target?.[0]||0)}><span>{point}</span><b><span>{items[i].moduleId} · {stageMeta[items[i].moduleId].title}</span><DirectionIcon direction="right" size={16}/></b></button>})}</div>}</article>)}</div>
         <aside className="lp-card lp-next">
-          {passed?<><span className="lp-big-medal">🏅</span><h3>{testMode==="final"?"L3 总勋章已获得":"章节勋章已点亮"}</h3><p className="lp-medal-praise">{testMode==="final"?"太棒了！你已经把六个模块的知识串成完整判断框架，这份专业积累值得骄傲。继续把学到的内容转化成客户听得懂的表达！":canSkipChapter?`漂亮通关！课前就能讲清 ${mid} 的关键因果链，说明你的基础很扎实。带着这份自信继续挑战下一关！`:`做得好！你认真补齐了 ${mid} 的知识要点，也把理解讲得更完整了。每一次复测都在让专业表达更稳，继续保持！`}</p><button className="lp-primary" onClick={()=>setView("overview")}>返回闯关地图 →</button></>:<><h3>精准补给路线</h3><p>{testMode==="final"?"回到薄弱章节，补齐知识后再次挑战。":"完成视频学习后使用另一组题目复测。"}</p><button className="lp-primary" onClick={()=>lesson(testMode==="final"?(scores.reduce((a,b)=>a.total<=b.total?a:b).moduleId):mid)}>回到课程补给 →</button></>}
+          {passed?<><span className="lp-big-medal">🏅</span><h3>{testMode==="final"?"L3 总勋章已获得":"章节勋章已点亮"}</h3><p className="lp-medal-praise">{testMode==="final"?"太棒了！你已经把六个模块的知识串成完整判断框架，这份专业积累值得骄傲。继续把学到的内容转化成客户听得懂的表达！":canSkipChapter?`漂亮通关！课前就能讲清 ${mid} 的关键因果链，说明你的基础很扎实。带着这份自信继续挑战下一关！`:`做得好！你认真补齐了 ${mid} 的知识要点，也把理解讲得更完整了。每一次复测都在让专业表达更稳，继续保持！`}</p><button className="lp-primary" onClick={()=>setView("overview")}><DirectionLabel>返回闯关地图</DirectionLabel></button></>:<><h3>精准补给路线</h3><p>{testMode==="final"?"回到薄弱章节，补齐知识后再次挑战。":"完成视频学习后使用另一组题目复测。"}</p><button className="lp-primary" onClick={()=>lesson(testMode==="final"?(scores.reduce((a,b)=>a.total<=b.total?a:b).moduleId):mid)}><DirectionLabel>回到课程补给</DirectionLabel></button></>}
         </aside>
       </div>
     </section>}
     </>}
   </div>
-  <div className={`lp-pet-dock ${petVisible||assistantOpen?"awake":""}`}>
-    {assistantOpen&&<section className="lp-pet-panel" aria-label="半小岛 AI 助教"><header><img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><b>{profile?.name?`${profile.name}的半小岛`:"半小岛"}</b><small>独立学习会话 · 共享长期成长档案</small></div><button onClick={()=>{setAssistantOpen(false);setPetVisible(false);}}>×</button></header>{guide&&<p className="lp-pet-guide">{guideLoading?"正在准备今日学习建议…":guide}</p>}<div className="lp-pet-messages">{globalMessages.slice(-8).map((m,i)=><article className={m.role} key={i}><p>{m.content}</p></article>)}{globalBusy&&<p>正在结合你的长期学习记录思考…</p>}<div ref={globalChatEnd}/></div><form onSubmit={e=>{e.preventDefault();askGlobal();}}><input value={globalInput} onChange={e=>setGlobalInput(e.target.value)} placeholder="问学习进度、薄弱点或下一步学什么"/><ChatVoiceButton value={globalInput} onChange={setGlobalInput} disabled={globalBusy} compact/><button className="lp-primary" disabled={globalBusy||!globalInput.trim()}>发送</button></form><button className="lp-pet-course" onClick={()=>{setAssistantOpen(false);setPetVisible(false);setView("overview");}}>返回课程闯关地图 →</button></section>}
-    {!petVisible&&!assistantOpen&&<button className="lp-pet-wake" onClick={()=>setPetVisible(true)} aria-label="唤醒半小岛">唤醒半小岛</button>}
-    {petVisible&&!assistantOpen&&<div className="lp-pet-awake"><div className={`lp-pet-speech ${welcomeOpen?"welcome":""}`}><b>{profile?.name||"同学"}你好呀{welcomeOpen?"，我是半小岛！":""}</b><p>{welcomeOpen?"欢迎来到学习中心。今天想先挑战一节，还是有课程问题想和我聊聊？":view==="test"?"别紧张，按自己的理解说就好；提交后我会陪你一起梳理要点。":view==="lesson"?"看视频时留意关键节点，有疑问随时叫我；看完我们再一起复测。":view==="personal"?"从你的优势出发，挑一个想提升的点，我们可以一起练练。":"今天先选一关试试吧，课前测一测，学会的内容就能直接点亮勋章。"}</p>{welcomeOpen&&<><button className="lp-primary" onClick={()=>{setWelcomeOpen(false);localStorage.setItem("half-island-welcome-v1","seen");setAssistantOpen(true);}}>和我聊聊 →</button><button className="lp-pet-welcome-close" onClick={()=>{setWelcomeOpen(false);localStorage.setItem("half-island-welcome-v1","seen");}} aria-label="关闭欢迎消息">×</button></>}</div><div className="lp-pet-mascot-control"><button className="lp-pet-avatar" onClick={()=>{setWelcomeOpen(false);localStorage.setItem("half-island-welcome-v1","seen");setAssistantOpen(true);}} aria-label="打开半小岛"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><i>AI</i></button><button className="lp-pet-hide" onClick={()=>{setPetVisible(false);setWelcomeOpen(false);localStorage.setItem("half-island-welcome-v1","seen");}} aria-label="隐藏半小岛">×</button></div></div>}
-  </div>
+  <FloatingCompanion name={profile?.name||"同学"} view={view} open={assistantOpen} onOpen={()=>setAssistantOpen(true)}>
+    {assistantOpen&&<section className="lp-pet-panel" aria-label="半小岛 AI 助教"><header><img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><b>{profile?.name?`${profile.name}的半小岛`:"半小岛"}</b></div><button aria-label="关闭半小岛对话" onClick={()=>{setAssistantOpen(false);}}><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header>{guide&&<p className="lp-pet-guide">{guideLoading?"正在准备今日学习建议…":guide}</p>}<div className="lp-pet-messages">{globalMessages.slice(-8).map((m,i)=><article className={m.role} key={i}><p>{m.content}</p></article>)}{globalBusy&&<p>正在结合你的长期学习记录思考…</p>}<div ref={globalChatEnd}/></div><form onSubmit={e=>{e.preventDefault();askGlobal();}}><input value={globalInput} onChange={e=>setGlobalInput(e.target.value)} placeholder="问学习进度、薄弱点或下一步学什么"/><ChatVoiceButton value={globalInput} onChange={setGlobalInput} onSend={()=>askGlobal()} disabled={globalBusy} compact/></form></section>}
+  </FloatingCompanion>
  </div>;
 }

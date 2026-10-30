@@ -937,9 +937,9 @@ function CorpusCenter({ corpusTotal, courses }: { corpusTotal: number; courses: 
         </div>
       </section>
       <section className="corpus-flow">
-        <div><span>01</span><b>原始课程</b><small>视频、讲师脚本、PDF 与转写</small></div><i>→</i>
-        <div><span>02</span><b>片段定位</b><small>保留文件名、页码或时间点</small></div><i>→</i>
-        <div><span>03</span><b>精华提炼</b><small>结论、金句、误区与销售表达</small></div><i>→</i>
+        <div><span>01</span><b>原始课程</b><small>视频、讲师脚本、PDF 与转写</small></div><ChevronRight size={18} aria-hidden="true"/>
+        <div><span>02</span><b>片段定位</b><small>保留文件名、页码或时间点</small></div><ChevronRight size={18} aria-hidden="true"/>
+        <div><span>03</span><b>精华提炼</b><small>结论、金句、误区与销售表达</small></div><ChevronRight size={18} aria-hidden="true"/>
         <div><span>04</span><b>审核入库</b><small>{reviewed}/{entries.length} 条已可供 AI 检索</small></div>
       </section>
       <section className="admin-panel corpus-panel">

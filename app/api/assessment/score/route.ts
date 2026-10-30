@@ -1,6 +1,7 @@
 import { getItem, getModule } from "@/lib/course";
 import { ruleScore } from "@/lib/scoring";
 import type { ScoreResult } from "@/lib/types";
+import { createModelCompletion, hasAIConfiguration } from "@/lib/ai-provider";
 
 function extractJson(text: string) {
   const match = text.match(/\{[\s\S]*\}/);
@@ -13,28 +14,22 @@ export async function POST(request: Request) {
   if (!itemId || !answer?.trim()) return Response.json({ error: "缺少题目或回答" }, { status: 400 });
   if (!getItem(itemId)) return Response.json({ error: "题目不存在" }, { status: 404 });
   const fallback = ruleScore(itemId, answer);
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey) return Response.json(fallback);
+  if (!hasAIConfiguration()) return Response.json(fallback);
   try {
     const item = getItem(itemId);
     const module = getModule(item.moduleId);
     const standardAnswer = item.requiredPointIndexes.map(i => module.requiredPoints[i]).join("；");
-    const base = (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
-    const response = await fetch(`${base}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(5000),
-      body: JSON.stringify({
+    const data = await createModelCompletion(
+      {
         model: process.env.AI_MODEL || "gpt-4.1-mini", temperature: 0, max_tokens: 650,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: "你是严格的课程答案评分器。只比较学员回答与标准答案要点，不按文采、长度或所谓表达能力评分。把100分均分给必答要点，依据语义是否真正回答到逐项给分。必须返回JSON，不得给出治疗建议。" },
           { role: "user", content: JSON.stringify({ question: item.prompt, answer, referenceAnswer: standardAnswer, source: item.reference, requiredPoints: item.requiredPointIndexes.map((i) => module.requiredPoints[i]), forbiddenMisconceptions: module.misconceptions, requiredOutput: { total: "0-100，必须等于pointScores中score之和并取整", pointCoverage: "0-100", pointScores: [{ point: "要点", score: 0, maxScore: 0, evidence: "学员原话证据或未命中原因" }], hitPoints: [], missingPoints: [], errorStatements: [], blockers: [], evidence: [], tags: [], feedback: { correct: "", gap: "", next: "" }, followUpNeeded: true } }) },
         ],
-      }),
-    });
-    if (!response.ok) throw new Error(`AI ${response.status}`);
-    const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+      },
+      5000,
+    ) as { choices?: Array<{ message?: { content?: string } }> };
     const parsed = extractJson(data.choices?.[0]?.message?.content || "");
     const requiredPoints = item.requiredPointIndexes.map(i => module.requiredPoints[i]);
     if (!Array.isArray(parsed.pointScores) || parsed.pointScores.length !== requiredPoints.length) throw new Error("评分要点数量不匹配");

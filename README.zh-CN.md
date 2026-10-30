@@ -15,15 +15,15 @@ npm run dev
 
 ## 模型配置
 
-在根目录创建 `.env.local`，配置兼容 Chat Completions 的服务：
+在根目录创建 `.env.local`，配置 TokenHub Anthropic Messages 接口：
 
 ```dotenv
-AI_API_KEY=填写自己的密钥
-AI_BASE_URL=https://你的模型服务地址/v1
-AI_MODEL=你的模型名称
+ANTHROPIC_AUTH_TOKEN=填写自己的 TokenHub API 密钥
+ANTHROPIC_BASE_URL=https://tokenhub.tencentmaas.com
+ANTHROPIC_MODEL=glm-5.3-flash
 ```
 
-修改后重启服务。课程问答和考试评分共用服务端配置，未配置时使用演示模式。密钥文件已被 Git 忽略。
+支持 `glm-5.3-flash` 和 `deepseek-v4-flash`，修改 `ANTHROPIC_MODEL` 即可切换。修改后重启服务。课程问答、考试评分、每日学习建议和课程内容生成共用服务端配置，未配置时使用演示或规则模式。密钥文件已被 Git 忽略。旧版 `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` OpenAI 兼容配置仍可使用。
 
 ## 本地视频
 
