@@ -16,7 +16,6 @@ export default function PersonalHome({ userId, onOpenAssistant }: PersonalHomePr
   const [progressSummary, setProgressSummary] = useState("");
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
   const [localBadges, setLocalBadges] = useState<string[]>([]);
   const [attempts, setAttempts] = useState<Array<{moduleId:string;score:number;missingPoints?:string[];hitPoints?:string[]}>>([]);
   const [formData, setFormData] = useState({
@@ -222,8 +221,7 @@ export default function PersonalHome({ userId, onOpenAssistant }: PersonalHomePr
       </section>
 
       <section className="lp-ph-card lp-ph-assistant">
-        <div className="lp-ph-assistant-main"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><h2>我的 AI 助教 · 半小岛</h2><p>我会参考你的身份、主攻方向和近期薄弱点，调整讲解方式和学习路线。</p></div><button className="lp-primary" onClick={() => setChatOpen(v => !v)}>{chatOpen ? "收起对话" : <DirectionLabel>和我聊聊</DirectionLabel>}</button></div>
-        {chatOpen && <div className="lp-ph-chat"><p>我会结合你的课程资料和近期练习记录回答。</p><button className="lp-secondary" onClick={onOpenAssistant}><DirectionLabel>打开全站助教对话</DirectionLabel></button></div>}
+        <div className="lp-ph-assistant-main"><img src="/assets/peninsula-companion.webp" alt="半小岛"/><div><h2>我的 AI 助教 · 半小岛</h2><p>我会参考你的身份、主攻方向和近期薄弱点，调整讲解方式和学习路线。</p></div><button className="lp-primary" onClick={onOpenAssistant}><DirectionLabel>和我聊聊</DirectionLabel></button></div>
         <div className="lp-ph-persona"><span>{profile.role === "new_hire" ? "新人循序带教" : "资深销售薄弱点巩固"}</span><span>{profile.registrationInfo?.specialization || "专业知识学习"}</span></div>
       </section>
 
